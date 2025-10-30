@@ -1,0 +1,16 @@
+html, body {
+                margin: 0;
+                height: 100%;
+                background: black;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            canvas {
+                border: 2px solid green;
+                width: 99vmin;
+                height: 99vmin;
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
+            }
