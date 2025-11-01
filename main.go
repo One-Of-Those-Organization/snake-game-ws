@@ -22,6 +22,9 @@ func main() {
 		aw: 32,
 		ah: 32,
 	}
+
+	go s.updateGame()
+
 	http.HandleFunc("/ws", s.handleConnection)
 	log.Printf("Started at: ws://locahost:%d\n", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))

@@ -14,4 +14,5 @@ type Snake struct {
 	BodyLen    int       `json:"body_len"`
 	Direction  int       `json:"dir"`
 	Color      string    `json:"color"`
+	Dead       bool      `json:"dead"`
 }
