@@ -20,10 +20,10 @@ const keyToDir = {
 readInput = (event, item) => {
     const new_dir = keyToDir[event.key];
     if (new_dir === undefined) return; // Abaikan jika bukan tombol arrow
-    
+
     // Cegah ular berbalik 180 derajat (kecuali panjang ular = 1)
     // Contoh: jika ular ke kanan (0), tidak bisa langsung ke kiri (2)
-    if (((item.dir + 2) % 4 !== new_dir) || item.len <= 1) {
+    if (((item.dir + 2) % 4 !== new_dir) || item.body_len <= 1) {
         item.dir = new_dir;
     }
 };
@@ -53,7 +53,7 @@ updateSnake = (item, foods) => {
     for (let i = foods.food.length - 1; i >= 0; i--) {
         const f = foods.food[i];
         if (f.x === head.x && f.y === head.y) {
-            item.len += 1;                    // Tambah panjang ular
+            item.body_len += 1;                    // Tambah panjang ular
             foods.food.splice(i, 1);          // Hapus makanan yang dimakan
             syncFoodWithSnake(foods);         // Spawn makanan baru
         }
@@ -70,7 +70,7 @@ updateSnake = (item, foods) => {
 
     // 6. Update posisi tubuh ular
     item.body.unshift(head);              // Tambah kepala baru di depan
-    while (item.body.length > item.len) {
+    while (item.body.length > item.body_len) {
         item.body.pop();                  // Buang ekor jika panjang berlebih
     }
 };
@@ -103,7 +103,7 @@ renderFood = (ctx, foods) => {
 syncFoodWithSnake = (foods, count = 1) => {
     // Set jumlah maksimal makanan
     if (!foods.max) foods.max = count;
-    
+
     // Hapus makanan berlebih (jika ada)
     if (foods.food.length > foods.max) {
         foods.food.length = foods.max;
@@ -117,6 +117,14 @@ syncFoodWithSnake = (foods, count = 1) => {
     }
 };
 
+function sendToWS(ws, data) {
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+    } else {
+        console.warn("WebSocket not open:", ws.readyState);
+    }
+}
+
 // ========================================
 // INISIALISASI GAME
 // ========================================
@@ -124,29 +132,41 @@ document.addEventListener("DOMContentLoaded", () => {
     // Setup canvas
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    
+
     // Konfigurasi game
     const speed = 7;              // FPS game (7 frame per detik)
     const snakes = [];            // Array untuk menyimpan semua ular
     const foods = { food: [], max: 1}; // Object makanan
-    const player_id = 0;          // ID player utama
-    
-    // Generate posisi dan arah awal ular secara random
-    // Nanti di assign ke WebSocket untuk Player 1 dan Player 2
-    const x = Math.floor(Math.random() * (SIZE.x - 0 + 1)) + 0;
-    const y = Math.floor(Math.random() * (SIZE.y - 0 + 1)) + 0;
-    const dir = Math.floor(Math.random() * (3 - 0 + 1)) + 0;
+    let player_id = -1;          // ID player utama
+    // const dir = Math.floor(Math.random() * (3 - 0 + 1)) + 0;
 
     let last_time = 0; // Tracker untuk frame timing
 
-    // Buat ular player
-    snakes.push({
-        id: 0,                      // ID ular
-        body: [{ x: y, y: x }],     // Posisi awal (1 segmen)
-        len: 1,                     // Panjang awal
-        dir: dir,                   // Arah random
-        color: 'white'              // Warna ular
+    // Setup ws
+    const ip = prompt("Enter server IP (default: localhost):") || "localhost";
+    const port = 8080;
+    const ws = new WebSocket(`ws://${ip}:${port}/ws`);
+
+    ws.onerror = (_) => {
+        const msg = "Failed to connect to the websocket";
+        console.error(msg);
+        alert(msg);
+    };
+
+    // Or use ws.send()
+    ws.onopen = () => {
+        ws.send(JSON.stringify({ type: "string", data: "ready" }));
+    };
+    // ws.addEventListener("open", () => console.log("Connected!"));
+    ws.addEventListener("message", (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === "p_snake") {
+            player_id = data.data.id;
+            snakes.push(data.data);
+            console.log("Got:", data)
+        }
     });
+    // ws.addEventListener("close", () => console.log("Closed!"));
 
     // Spawn makanan pertama
     syncFoodWithSnake(foods, snakes.length);
@@ -177,7 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             last_time = timestamp; // Update waktu frame terakhir
         }
-        
+
         // Loop terus menerus
         requestAnimationFrame(gameLoop);
     }
