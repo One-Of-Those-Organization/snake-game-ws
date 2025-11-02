@@ -5,6 +5,7 @@ import (
 	"log"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 	"github.com/gorilla/websocket"
 	"encoding/json"
@@ -54,7 +55,22 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 		msgType, _ := data["type"].(string)
 		msgData, _ := data["data"].(string)
 
-		if msgType == "connect" {}
+		if msgType == "connect" {
+			cID, err := strconv.Atoi(msgData)
+			if err != nil {
+				state := map[string]any{
+					"type": "fail",
+					"data": "Failed to connect with that id",
+				}
+				jsonBytes, _ := json.Marshal(state)
+				err = conn.WriteMessage(messageType, []byte(jsonBytes))
+				if err != nil {
+					log.Println("Gagal kirim pesan:", err)
+					continue
+				}
+			}
+			// TODO: Connect the snake with that ID to that socket
+		}
 		if msgType == "string" && msgData == "ready" {
 			s.lock.Lock()
 			found := false
@@ -103,6 +119,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		}
+		// TODO: Do a for loop and see if this connection control what snake
+		// with what ID
 		if msgType == "input" {
 			dir, ok := data["dir"].(float64)
 			if ok {
