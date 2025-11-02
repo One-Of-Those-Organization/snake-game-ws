@@ -1,5 +1,5 @@
 // ========================================
-// FUNGSI RENDER - Gambar ular di canvas
+// RENDER FUNCTIONS
 // ========================================
 function renderSnake(ctx, item) {
     ctx.fillStyle = item.color;
@@ -8,9 +8,6 @@ function renderSnake(ctx, item) {
     });
 }
 
-// ========================================
-// FUNGSI RENDER - Gambar makanan di canvas
-// ========================================
 function renderFood(ctx, foods) {
     ctx.fillStyle = 'red';
     foods.forEach(f => {
@@ -27,32 +24,43 @@ function sendToWS(ws, data) {
 }
 
 // ========================================
-// INISIALISASI GAME
+// MAIN LOGIC
 // ========================================
 document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const scale = 16; // optional, if you want to upscale grid cells
-
-    // Konfigurasi
-    const speed = 7;
+    const scale = 16;
     const snakes = [];
     const foods = [];
     let player_id = -1;
 
-    // Setup WS
+    // === CONNECT TO SERVER ===
     const ip = prompt("Enter server IP (default: localhost):") || "localhost";
     const port = 8080;
     const ws = new WebSocket(`ws://${ip}:${port}/ws`);
 
     ws.onerror = (_) => {
-        const msg = "Failed to connect to the websocket";
+        const msg = "Failed to connect to the WebSocket";
         console.error(msg);
         alert(msg);
     };
 
     ws.onopen = () => {
-        sendToWS(ws, { type: "string", data: "ready" });
+        // Ask if user wants to reconnect
+        const reconnectChoice = confirm("Reconnect to existing snake?");
+        if (reconnectChoice) {
+            const idInput = prompt("Enter your snake ID:");
+            const parsed = parseInt(idInput);
+            if (!isNaN(parsed)) {
+                player_id = parsed;
+                sendToWS(ws, { type: "connect", data: String(parsed) });
+            } else {
+                alert("Invalid ID, starting new snake instead.");
+                sendToWS(ws, { type: "string", data: "ready" });
+            }
+        } else {
+            sendToWS(ws, { type: "string", data: "ready" });
+        }
     };
 
     ws.addEventListener("message", (e) => {
@@ -60,19 +68,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (data.type === "p_snake") {
             player_id = data.data.id;
+            console.log("Assigned snake ID:", player_id);
         } else if (data.type === "state") {
             snakes.length = 0;
             foods.length = 0;
             snakes.push(...data.data.snakes);
             foods.push(...data.data.foods);
         } else if (data.type === "s_death") {
-            alert("Snake Death!");
+            alert(`Your snake (${data.data}) died!`);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ws.close();
+        } else if (data.type === "fail") {
+            alert("Failed to connect: " + data.data);
+            ws.close();
         }
     });
 
     // ========================================
-    // EVENT LISTENER - Tangkap input keyboard
+    // INPUT
     // ========================================
     const keyToDir = {
         ArrowRight: 0,
@@ -88,17 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ========================================
-    // GAME LOOP - Render only (no logic)
+    // RENDER LOOP
     // ========================================
     function gameLoop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Render makanan
         renderFood(ctx, foods);
-
-        // Render semua ular
         snakes.forEach(item => renderSnake(ctx, item));
-
         requestAnimationFrame(gameLoop);
     }
 

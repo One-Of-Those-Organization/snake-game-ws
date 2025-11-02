@@ -37,6 +37,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Client terhubung!")
 
+	var socMap *Mapping = nil
+
 	for {
 		messageType, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -44,90 +46,114 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		var data map[string] any
-		if err := json.Unmarshal([]byte(msg), &data); err != nil {
-			fmt.Println("Error:", err)
-			return
+		var data map[string]any
+		if err := json.Unmarshal(msg, &data); err != nil {
+			log.Println("Error decode:", err)
+			continue
 		}
-
-		fmt.Printf("Server menerima: %v\n", data)
 
 		msgType, _ := data["type"].(string)
 		msgData, _ := data["data"].(string)
 
-		if msgType == "connect" {
+		switch msgType {
+		// TODO: Check first if the snake with that id already controlled
+		// if yes then deny them!
+		// ----------------------------------------
+		// RECONNECT EXISTING SNAKE
+		// ----------------------------------------
+		case "connect":
 			cID, err := strconv.Atoi(msgData)
 			if err != nil {
-				state := map[string]any{
-					"type": "fail",
-					"data": "Failed to connect with that id",
-				}
-				jsonBytes, _ := json.Marshal(state)
-				err = conn.WriteMessage(messageType, []byte(jsonBytes))
-				if err != nil {
-					log.Println("Gagal kirim pesan:", err)
-					continue
-				}
+				sendFail(conn, messageType, "Invalid ID format")
+				continue
 			}
-			// TODO: Connect the snake with that ID to that socket
-		}
-		if msgType == "string" && msgData == "ready" {
+
 			s.lock.Lock()
 			found := false
-			for _, excon := range s.cons {
-				if (conn == excon.soc) {
+			for i := range s.snakes {
+				if s.snakes[i].ID == cID {
 					found = true
+					socMap = &Mapping{soc: conn, snakeID: cID}
+
+					// Remove old mapping if exists
+					for j := range s.cons {
+						if s.cons[j].snakeID == cID {
+							s.cons[j].soc.Close() // force disconnect old socket
+							s.cons[j].soc = conn  // rebind
+							s.lock.Unlock()
+							log.Printf("Reconnected to snake ID %d\n", cID)
+
+							// Notify client of successful reconnection
+							state := map[string]any{
+								"type": "p_snake",
+								"data": s.snakes[i],
+							}
+							jsonBytes, _ := json.Marshal(state)
+							conn.WriteMessage(messageType, jsonBytes)
+							goto CONTINUE_LOOP
+						}
+					}
+
+					// No previous mapping (e.g. disconnected earlier)
+					s.cons = append(s.cons, *socMap)
+					log.Printf("Reconnected (new mapping) to snake ID %d\n", cID)
+
+					// Notify client of successful reconnection
+					state := map[string]any{
+						"type": "p_snake",
+						"data": s.snakes[i],
+					}
+					jsonBytes, _ := json.Marshal(state)
+					conn.WriteMessage(messageType, jsonBytes)
 					break
 				}
 			}
-
-			newSnake := Snake{
-				ID: s.counter,
-				Body: []Vector2 {
-					{
-						X: rand.Intn(s.aw - 0) + 0,
-						Y: rand.Intn(s.ah - 0) + 0,
-					},
-				},
-				BodyLen: 1,
-				Color: generate_random_color(),
-				Direction: rand.Intn(4 - 0) + 0,
-			}
-			if !found {
-				s.cons = append(s.cons,
-				Mapping{
-					soc: conn,
-					snakeID: newSnake.ID,
-				})
-				s.snakes = append(s.snakes, newSnake)
-			}
-			s.counter++
 			s.lock.Unlock()
 
-			ret := map[string]any{
-				"type": "p_snake",
-				"data": newSnake,
-			}
-			jsonBytes, err := json.Marshal(ret)
-			if err != nil {
-				log.Printf("Failed to parse `%v` to json: %s\n", ret, err)
-				break
-			}
-			err = conn.WriteMessage(messageType, []byte(jsonBytes))
-			if err != nil {
-				log.Println("Gagal kirim pesan:", err)
+			if !found {
+				sendFail(conn, messageType, fmt.Sprintf("No snake found with ID %d", cID))
 				continue
 			}
-		}
-		// TODO: Do a for loop and see if this connection control what snake
-		// with what ID
-		if msgType == "input" {
+
+		// ----------------------------------------
+		// CREATE NEW PLAYER
+		// ----------------------------------------
+		case "string":
+			if msgData == "ready" {
+				s.lock.Lock()
+
+				newSnake := Snake{
+					ID:        s.counter,
+					Body:      []Vector2{{X: rand.Intn(s.aw), Y: rand.Intn(s.ah)}},
+					BodyLen:   1,
+					Color:     generate_random_color(),
+					Direction: rand.Intn(4),
+				}
+
+				socMap = &Mapping{soc: conn, snakeID: newSnake.ID}
+				s.cons = append(s.cons, *socMap)
+				s.snakes = append(s.snakes, newSnake)
+				s.counter++
+
+				s.lock.Unlock()
+
+				ret := map[string]any{
+					"type": "p_snake",
+					"data": newSnake,
+				}
+				jsonBytes, _ := json.Marshal(ret)
+				conn.WriteMessage(messageType, jsonBytes)
+			}
+
+		// ----------------------------------------
+		// HANDLE INPUT
+		// ----------------------------------------
+		case "input":
 			dir, ok := data["dir"].(float64)
-			if ok {
+			if ok && socMap != nil {
 				s.lock.Lock()
 				for i := range s.snakes {
-					if s.snakes[i].ID == int(data["id"].(float64)) {
-						// prevent 180 turn
+					if s.snakes[i].ID == socMap.snakeID {
 						if (s.snakes[i].Direction+2)%4 != int(dir) || s.snakes[i].BodyLen <= 1 {
 							s.snakes[i].Direction = int(dir)
 						}
@@ -136,15 +162,17 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				s.lock.Unlock()
 			}
 		}
-
-
+	CONTINUE_LOOP:
 	}
 
+	// ----------------------------------------
+	// HANDLE DISCONNECT
+	// ----------------------------------------
 	log.Println("Client terputus")
 	s.lock.Lock()
 	index := -1
 	for i, excon := range s.cons {
-		if (conn == excon.soc) {
+		if conn == excon.soc {
 			index = i
 			break
 		}
@@ -152,7 +180,6 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 	if index >= 0 {
 		s.cons = append(s.cons[:index], s.cons[index+1:]...)
-		s.snakes = append(s.snakes[:index], s.snakes[index+1:]...)
 	}
 	s.lock.Unlock()
 }
@@ -309,4 +336,13 @@ func (s *Server) checkSelfCollision(sn *Snake) {
 			return
 		}
 	}
+}
+
+func sendFail(conn *websocket.Conn, msgType int, reason string) {
+	state := map[string]any{
+		"type": "fail",
+		"data": reason,
+	}
+	jsonBytes, _ := json.Marshal(state)
+	conn.WriteMessage(msgType, jsonBytes)
 }
