@@ -11,10 +11,15 @@ import (
 	"math/rand"
 )
 
+type Mapping struct {
+	snakeID int
+	soc     *websocket.Conn
+}
+
 type Server struct {
 	snakes  []Snake
 	foods   []Food
-	cons    []*websocket.Conn
+	cons    []Mapping
 	lock    sync.Mutex
 	counter int
 	aw, ah  int
@@ -54,7 +59,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			s.lock.Lock()
 			found := false
 			for _, excon := range s.cons {
-				if (conn == excon) {
+				if (conn == excon.soc) {
 					found = true
 					break
 				}
@@ -73,7 +78,11 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				Direction: rand.Intn(4 - 0) + 0,
 			}
 			if !found {
-				s.cons = append(s.cons, conn)
+				s.cons = append(s.cons,
+				Mapping{
+					soc: conn,
+					snakeID: newSnake.ID,
+				})
 				s.snakes = append(s.snakes, newSnake)
 			}
 			s.counter++
@@ -117,7 +126,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	s.lock.Lock()
 	index := -1
 	for i, excon := range s.cons {
-		if (conn == excon) {
+		if (conn == excon.soc) {
 			index = i
 			break
 		}
@@ -146,10 +155,26 @@ func (s *Server) updateGame() {
 			s.moveSnake(&s.snakes[i])
 			s.checkFoodCollision(&s.snakes[i])
 			s.checkSelfCollision(&s.snakes[i])
+			s.checkOtherCollision(&s.snakes[i])
 		}
 		if foundDeath >= 0 {
+			// Send msg that the snake is death
+			var index int = 0;
+			for i, c := range s.cons {
+				if c.snakeID == s.snakes[foundDeath].ID {
+					state := map[string]any{
+						"type": "s_death",
+						"data": c.snakeID,
+					}
+					jsonBytes, _ := json.Marshal(state)
+					c.soc.WriteMessage(websocket.TextMessage, jsonBytes)
+					index = i
+					break
+				}
+			}
 			s.snakes = append(s.snakes[:foundDeath], s.snakes[foundDeath+1:]...)
-			// TODO: Disconncet the connection
+			s.cons[index].soc.Close()
+			s.cons = append(s.cons[:index], s.cons[index+1:]...)
 		}
 
 		// Ensure food exists
@@ -167,7 +192,7 @@ func (s *Server) updateGame() {
 		}
 		jsonBytes, _ := json.Marshal(state)
 		for _, conn := range s.cons {
-			conn.WriteMessage(websocket.TextMessage, jsonBytes)
+			conn.soc.WriteMessage(websocket.TextMessage, jsonBytes)
 		}
 		s.lock.Unlock()
 	}
@@ -219,6 +244,27 @@ func (s *Server) spawnFood() {
 		Y: rand.Intn(s.ah),
 	}
 	s.foods = append(s.foods, f)
+}
+
+func (s *Server) checkOtherCollision(sn *Snake) {
+	if len(sn.Body) == 0 || sn.Dead {
+		return
+	}
+
+	head := sn.Body[0]
+
+	for _, other := range s.snakes {
+		if other.ID == sn.ID || other.Dead {
+			continue
+		}
+
+		for _, seg := range other.Body {
+			if head.X == seg.X && head.Y == seg.Y {
+				sn.Dead = true
+				return
+			}
+		}
+	}
 }
 
 func (s *Server) checkFoodCollision(sn *Snake) {

@@ -65,6 +65,9 @@ document.addEventListener("DOMContentLoaded", () => {
             foods.length = 0;
             snakes.push(...data.data.snakes);
             foods.push(...data.data.foods);
+        } else if (data.type === "s_death") {
+            alert("Snake Death!");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     });
 
