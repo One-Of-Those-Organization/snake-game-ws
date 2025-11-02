@@ -27,6 +27,7 @@ function sendToWS(ws, data) {
 // MAIN LOGIC
 // ========================================
 document.addEventListener("DOMContentLoaded", () => {
+    const idDisplay = document.getElementById('snake_id');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const scale = 16;
@@ -53,6 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const parsed = parseInt(idInput);
             if (!isNaN(parsed)) {
                 player_id = parsed;
+                idDisplay.innerText = player_id;
                 sendToWS(ws, { type: "connect", data: String(parsed) });
             } else {
                 alert("Invalid ID, starting new snake instead.");
@@ -68,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (data.type === "p_snake") {
             player_id = data.data.id;
+            idDisplay.innerText = player_id;
             console.log("Assigned snake ID:", player_id);
         } else if (data.type === "state") {
             snakes.length = 0;

@@ -1,16 +1,22 @@
 html, body {
-                margin: 0;
-                height: 100%;
-                background: black;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
+    margin: 0;
+    height: 100%;
+    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
 
-            canvas {
-                border: 2px solid green;
-                width: 99vmin;
-                height: 99vmin;
-                image-rendering: pixelated;
-                image-rendering: crisp-edges;
-            }
+canvas {
+    border: 2px solid green;
+    width: 99vmin;
+    height: 99vmin;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+.displayid {
+    position: absolute;
+    top: 15px;
+    color: white;
+}
