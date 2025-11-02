@@ -69,7 +69,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					},
 				},
 				BodyLen: 1,
-				Color: "white",
+				Color: generate_random_color(),
 				Direction: rand.Intn(4 - 0) + 0,
 			}
 			if !found {
@@ -137,17 +137,23 @@ func (s *Server) updateGame() {
 	for range ticker.C {
 		s.lock.Lock()
 		// Move snakes, handle growth and death
+		foundDeath := -1
 		for i := range s.snakes {
 			if s.snakes[i].Dead {
+				if foundDeath < 0 { foundDeath = i }
 				continue
 			}
 			s.moveSnake(&s.snakes[i])
 			s.checkFoodCollision(&s.snakes[i])
 			s.checkSelfCollision(&s.snakes[i])
 		}
+		if foundDeath >= 0 {
+			s.snakes = append(s.snakes[:foundDeath], s.snakes[foundDeath+1:]...)
+			// TODO: Disconncet the connection
+		}
 
 		// Ensure food exists
-		for len(s.foods) < 1 {
+		for len(s.foods) < len(s.snakes) {
 			s.spawnFood()
 		}
 

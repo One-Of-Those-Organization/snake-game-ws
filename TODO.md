@@ -1,0 +1,5 @@
+- no collision with other snake
+- [x] food only spawn one even if there is many snake
+- no reconnect (maybe there will be auto generated password?)
+- [x] snake color all white
+- food spawn and snake spawn improvement
