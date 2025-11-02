@@ -56,8 +56,6 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 		msgData, _ := data["data"].(string)
 
 		switch msgType {
-		// TODO: Check first if the snake with that id already controlled
-		// if yes then deny them!
 		// ----------------------------------------
 		// RECONNECT EXISTING SNAKE
 		// ----------------------------------------
@@ -78,19 +76,23 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					// Remove old mapping if exists
 					for j := range s.cons {
 						if s.cons[j].snakeID == cID {
-							s.cons[j].soc.Close() // force disconnect old socket
-							s.cons[j].soc = conn  // rebind
+							// s.cons[j].soc.Close() // force disconnect old socket
+							// s.cons[j].soc = conn  // rebind
+							// s.lock.Unlock()
+							// log.Printf("Reconnected to snake ID %d\n", cID)
+							//
+							// // Notify client of successful reconnection
+							// state := map[string]any{
+							// 	"type": "p_snake",
+							// 	"data": s.snakes[i],
+							// }
+							// jsonBytes, _ := json.Marshal(state)
+							// conn.WriteMessage(messageType, jsonBytes)
+							sendFail(conn, messageType, "That id is already controlled.")
+							socMap = nil
 							s.lock.Unlock()
-							log.Printf("Reconnected to snake ID %d\n", cID)
-
-							// Notify client of successful reconnection
-							state := map[string]any{
-								"type": "p_snake",
-								"data": s.snakes[i],
-							}
-							jsonBytes, _ := json.Marshal(state)
-							conn.WriteMessage(messageType, jsonBytes)
-							goto CONTINUE_LOOP
+							socMap = nil
+							return
 						}
 					}
 
@@ -162,7 +164,6 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				s.lock.Unlock()
 			}
 		}
-	CONTINUE_LOOP:
 	}
 
 	// ----------------------------------------
