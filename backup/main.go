@@ -10,19 +10,22 @@ import (
 func main() {
 	port := 8080
 	var s = Server {
-		Upgrade: websocket.Upgrader{
+		upgrade: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			CheckOrigin: func(r *http.Request) bool {
 				return true
 			},
 		},
-		Counter: 0,
+		snakes: make([]Snake, 0, 10),
+		counter: 0,
+		aw: 32,
+		ah: 32,
 	}
 
 	go s.updateGame()
 
 	http.HandleFunc("/ws", s.handleConnection)
-	log.Printf("Hosted at: ws://locahost:%d\n", port)
+	log.Printf("Started at: ws://locahost:%d\n", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
