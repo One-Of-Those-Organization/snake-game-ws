@@ -43,3 +43,10 @@ export interface SnakeCanvasProps {
 export interface GameMenuProps {
   onLeave: () => void;
 }
+
+// Game Result Component
+export interface GameResultProps {
+  score: number;
+  isWinner: boolean;
+  onLeave: () => void;
+}
