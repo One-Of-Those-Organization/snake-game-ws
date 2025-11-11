@@ -35,6 +35,7 @@ export function useInputUserName() {
   // Delete the User ID here later when integrating with backend
   const deleteUserName = () => {
     localStorage.removeItem("userName");
+    localStorage.removeItem("userId");
     setUserName("");
     setIsFirstLogin(true);
   };

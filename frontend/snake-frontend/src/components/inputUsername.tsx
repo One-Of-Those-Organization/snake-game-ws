@@ -5,7 +5,8 @@ export default function NameInput(props: UserData) {
   return (
     <div className="p-8 bg-gray-800 rounded-lg shadow-lg flex flex-col items-center w-80">
       <h2 className="text-white text-2xl font-bold mb-4 text-center">
-        Enter Your Name
+        Snake Game
+        <p>Enter Your Name</p>
       </h2>
       {/* Input Your Name */}
       <input
