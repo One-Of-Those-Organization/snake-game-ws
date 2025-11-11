@@ -1,6 +1,8 @@
 package main
 
 import (
+	"math"
+	"math/rand"
 	"log"
 	"fmt"
 	"sync"
@@ -8,6 +10,7 @@ import (
 	"net/http"
 	"encoding/json"
 	"strconv"
+	"time"
 )
 
 type Server struct {
@@ -25,6 +28,9 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	timeout := 120 * time.Second
+	conn.SetReadDeadline(time.Now().Add(timeout))
+
 	// TODO: Add timer and if this `player` didnt send anything then disconnect them!
 	for {
 		messageType, msg, err := conn.ReadMessage()
@@ -33,6 +39,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		conn.SetReadDeadline(time.Now().Add(timeout))
+
 		var data map[string]any
 		if err := json.Unmarshal(msg, &data); err != nil {
 			log.Println("Error decode:", err)
@@ -40,17 +48,19 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 		}
 
 		msgType, _ := data["type"].(string)
-		msgData, _ := data["data"].(string)
 
 		switch msgType {
 			case "connect": {
 				s.Lock.Lock()
 				defer s.Lock.Unlock()
 
+				msgData, err := data["data"].(string)
+				if err { sendFail(conn, messageType, "Failed to parse data to string!") }
 				newPlayer := Player{
 					ID: s.Counter,
 					Name: msgData,
 					Socket: conn,
+					UniqeID: rand.Intn(math.MaxInt),
 				}
 				s.Counter++
 				s.PlayerConn = append(s.PlayerConn, newPlayer)
@@ -59,9 +69,32 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					"type": "player",
 					"data": newPlayer,
 				}
-
 				jsonBytes, _ := json.Marshal(ret)
 				conn.WriteMessage(messageType, jsonBytes)
+
+				break;
+			}
+			case "reconnect":{
+				s.Lock.Lock()
+				defer s.Lock.Unlock()
+
+				msgData, err := data["data"].(struct { ID float64; UniqueID float64; })
+				if err { sendFail(conn, messageType, "Failed to parse data to a custom struct") }
+
+				for _, p := range s.PlayerConn {
+					if p.ID == int(msgData.ID) && p.UniqeID == int(msgData.UniqueID) {
+						if p.Socket != nil { p.Socket.Close() }
+						p.Socket = conn
+						ret := map[string]any{
+							"type": "player",
+							"data": p,
+						}
+						jsonBytes, _ := json.Marshal(ret)
+						conn.WriteMessage(messageType, jsonBytes)
+						break
+					}
+				}
+				sendFail(conn, messageType, "Failed to reconnect with that id and uniqeid!")
 
 				break;
 			}
@@ -69,6 +102,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				s.Lock.Lock()
 				defer s.Lock.Unlock()
 
+				msgData, err := data["data"].(string)
+				if err { sendFail(conn, messageType, "Failed to parse data to string!") }
 				for _, p := range s.PlayerConn {
 					if p.Socket == conn {
 						convert, err := strconv.Atoi(msgData)
