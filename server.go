@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+const ARENA_SIZEX = 32
+const ARENA_SIZEY = 32
+
 type Server struct {
 	PlayerConn []Player;
 	Upgrade    websocket.Upgrader
@@ -60,6 +63,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					ID: s.Counter,
 					Name: msgData,
 					Socket: conn,
+					Snake: nil,
 					UniqeID: rand.Intn(math.MaxInt),
 				}
 				s.Counter++
@@ -113,11 +117,25 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
-				// TODO: Return snake
+				newSnake := Snake{
+					Body:      []Vector2{{x: rand.Intn(ARENA_SIZEX), y: rand.Intn(ARENA_SIZEY)}},
+					BodyLen:   1,
+					Color:     "white",
+					Direction: rand.Intn(4),
+				}
+
+				for _, p := range s.PlayerConn {
+					if p.Socket == conn {
+						*p.Snake = newSnake
+						break
+					}
+				}
+
 				ret := map[string]any{
 					"type": "snake",
-					"data": nil,
+					"data": newSnake,
 				}
+
 				jsonBytes, _ := json.Marshal(ret)
 				conn.WriteMessage(messageType, jsonBytes)
 

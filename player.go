@@ -9,5 +9,6 @@ type Player struct {
 	Name       string           `json:"string"`
 	InRoom     *int             `json:"room"`
 	UniqeID    int              `json:"uniqe"`
+	Snake      *Snake           `json:"snake"`
 	Socket     *websocket.Conn
 };
