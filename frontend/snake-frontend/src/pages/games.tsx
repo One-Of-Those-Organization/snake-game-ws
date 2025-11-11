@@ -1,17 +1,24 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
+import GameMenu from "../components/GameMenu";
+import type { SnakeCanvasProps } from "../api/interface";
 
-export default function SnakeCanvas() {
+export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
-  // WebSocket URL
-  const WS_URL = `ws://localhost:8080/ws`;
-  const { isConnected, gameState, playerSnake, sendMove } =
-    useWebSocket(WS_URL);
+  const WS_URL = `ws://localhost:8080/ws?roomId=${roomId}&name=${playerName}`;
+  const { isConnected, gameState, playerSnake, sendMove } = useWebSocket(WS_URL);
 
-  // Handle Key Press for Movement
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowMenu(prev => !prev);
+        return;
+      }
+
+      if (showMenu) return;
+
       if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
         sendMove(0);
       }
@@ -26,12 +33,10 @@ export default function SnakeCanvas() {
       }
     };
 
-    // Read Key Presses
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [sendMove]);
+  }, [sendMove, showMenu]);
 
-  // Canvas Drawing Logic
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !gameState) return;
@@ -57,7 +62,6 @@ export default function SnakeCanvas() {
       });
     }
 
-    // Draw Snakes
     if (gameState.snakes && Array.isArray(gameState.snakes)) {
       gameState.snakes.forEach((snake: any) => {
         if (snake.Body && Array.isArray(snake.Body)) {
@@ -79,7 +83,6 @@ export default function SnakeCanvas() {
     }
   }, [gameState, playerSnake]);
 
-  // Render Component
   return (
     <div className="relative flex flex-col justify-center items-center w-screen h-screen bg-gradient-to-br from-gray-900 to-gray-800">
       <div className="absolute top-4 left-4">
@@ -105,9 +108,11 @@ export default function SnakeCanvas() {
         style={{ imageRendering: "pixelated" }}
       />
 
+      {showMenu && <GameMenu onLeave={onBack} />}
+
       <div className="absolute bottom-8 text-gray-400 text-sm text-center">
         <p className="font-semibold mb-1">Controls</p>
-        <p className="text-xs">Arrow Keys / WASD to move</p>
+        <p className="text-xs">Arrow Keys / WASD to move | ESC to pause</p>
       </div>
     </div>
   );

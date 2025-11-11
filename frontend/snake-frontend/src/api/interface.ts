@@ -29,4 +29,17 @@ export interface CreateRoomProps {
 // Find Room Component
 export interface FindRoomProps {
   onBack: () => void;
+  onJoinGame: (roomId: string) => void;
+}
+
+// Snake Canvas Component
+export interface SnakeCanvasProps {
+  roomId: string;
+  playerName: string;
+  onBack: () => void;
+}
+
+// Game Menu Component
+export interface GameMenuProps {
+  onLeave: () => void;
 }

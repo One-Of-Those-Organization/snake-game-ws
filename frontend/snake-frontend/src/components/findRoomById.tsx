@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FindRoomProps } from "../api/interface";
 
 // Find Room
-export default function FindRoom({ onBack }: FindRoomProps) {
+export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
   // Input Room ID
   const [roomId, setRoomId] = useState(["", "", "", "", ""]);
   // Refs for input elements
@@ -40,8 +40,7 @@ export default function FindRoom({ onBack }: FindRoomProps) {
   const handleJoinRoom = () => {
     const fullRoomId = roomId.join("");
     if (fullRoomId.length === 5) {
-      console.log("Joining room:", fullRoomId);
-      // TODO: Call findRoomById(fullRoomId) or API
+      onJoinGame(fullRoomId);
       localStorage.removeItem("InFindingRoom");
     }
   };

@@ -19,11 +19,27 @@ export default function App() {
   const { rooms, createNewRoom } = useRoomLogic();
   const [isCreateRoom, setIsCreateRoom] = useState(false);
   const [isFindRoom, setIsFindRoom] = useState(false);
-  const [isInGame, setIsInGame] = useState(false);
   const alreadyCreatedRoom = useRef(false);
 
   // Firewall for valid user session
   const isValid = userSession();
+
+  // Current Game State
+  const [currentGame, setCurrentGame] = useState<{
+    roomId: string;
+    playerName: string;
+  } | null>(null);
+
+  // Start Game Handler
+  const handleStartGame = (roomId: string) => {
+    setCurrentGame({ roomId, playerName: userName });
+    setIsCreateRoom(false);
+  };
+
+  // Leave Game Handler
+  const handleLeaveGame = () => {
+    setCurrentGame(null);
+  };
 
   // Prevent Refresh go back to Main Menu
   const OnCreateMenu = localStorage.getItem("InCreatingRoom");
@@ -54,26 +70,32 @@ export default function App() {
   // At least the return is simplyfied by separating components
   return (
     <div className="w-screen h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
-      {/* First input Name */}
-      {!isValid && isFirstLogin ? (
+      {currentGame ? (
+        <SnakeCanvas
+          roomId={currentGame.roomId}
+          playerName={currentGame.playerName}
+          onBack={handleLeaveGame}
+        />
+      ) : !isValid && isFirstLogin ? (
         <NameInput
           userName={userName}
           setUserName={setUserName}
           onConfirm={saveUserName}
         />
-      ) : // Create Room or Find Room
-      isInGame ? (
-        <SnakeCanvas />
       ) : isCreateRoom ? (
         <CreateRoom
           rooms={rooms}
           onBack={() => setIsCreateRoom(false)}
-          onStartGame={() => setIsInGame(true)}
+          onStartGame={() =>
+            handleStartGame(rooms[rooms.length - 1]?.room_id || "12345")
+          }
         />
       ) : isFindRoom ? (
-        <FindRoom onBack={() => setIsFindRoom(false)} />
+        <FindRoom
+          onBack={() => setIsFindRoom(false)}
+          onJoinGame={handleStartGame}
+        />
       ) : (
-        // Default Main Menu
         <MainMenu
           onQuit={deleteUserName}
           onCreateRoom={() => setIsCreateRoom(true)}
