@@ -1,8 +1,13 @@
 import { useState } from "react";
 
+// Hook to Manage User Name Input and Session
 export function useInputUserName() {
-const [userName, setUserName] = useState(() => localStorage.getItem("userName") || "");
-const [isFirstLogin, setIsFirstLogin] = useState(() => !localStorage.getItem("userName"));
+  const [userName, setUserName] = useState(
+    () => localStorage.getItem("userName") || ""
+  );
+  const [isFirstLogin, setIsFirstLogin] = useState(
+    () => !localStorage.getItem("userName")
+  );
 
   // Handle Save User Name (For now Local Storage)
   // Save the User ID here later when integrating with backend
@@ -18,12 +23,13 @@ const [isFirstLogin, setIsFirstLogin] = useState(() => !localStorage.getItem("us
     }
   };
 
+  // Check User Session Validity
   const userSession = () => {
     const currentUserName = localStorage.getItem("userName");
     const sessionUserName = localStorage.getItem("userId");
 
     return Boolean(currentUserName && sessionUserName);
-  }
+  };
 
   // Handle Delete User Name (Can be used for logout and switching accounts)
   // Delete the User ID here later when integrating with backend
@@ -33,5 +39,14 @@ const [isFirstLogin, setIsFirstLogin] = useState(() => !localStorage.getItem("us
     setIsFirstLogin(true);
   };
 
-  return {userName, setUserName, isFirstLogin, saveUserName, userSession, deleteUserName};
+  // Return necessary states and functions
+    // NOTE : If want to add some more, make sure to return (because i always almost forgot)
+  return {
+    userName,
+    setUserName,
+    isFirstLogin,
+    saveUserName,
+    userSession,
+    deleteUserName,
+  };
 }

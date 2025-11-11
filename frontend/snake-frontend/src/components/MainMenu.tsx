@@ -1,7 +1,10 @@
 import { useInputUserName } from "../hooks/useUsername";
+import type { MainMenuProps } from "../api/interface";
 
-export default function MainMenu({ onQuit }: { onQuit: () => void }) {
-const { userName } = useInputUserName();
+// Main Menu
+export default function MainMenu(props: MainMenuProps) {
+  const { onQuit, onCreateRoom, onFindRoom } = props;
+  const { userName } = useInputUserName();
 
   return (
     <div className="p-8 bg-gray-800 rounded-lg shadow-lg flex flex-col items-center w-80">
@@ -13,12 +16,18 @@ const { userName } = useInputUserName();
       </h1>
 
       {/* Create Room */}
-      <button className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200 ease-in-out active:scale-95 font-bold">
+      <button
+        onClick={onCreateRoom}
+        className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200 ease-in-out active:scale-95 font-bold"
+      >
         Create Room
       </button>
 
       {/* Search Room */}
-      <button className="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200 ease-in-out active:scale-95 font-bold">
+      <button
+        onClick={onFindRoom}
+        className="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200 ease-in-out active:scale-95 font-bold"
+      >
         Search Room
       </button>
 
