@@ -5,6 +5,7 @@ import NameInput from "./components/inputUsername";
 import MainMenu from "./components/MainMenu";
 import CreateRoom from "./components/createRoom";
 import FindRoom from "./components/findRoomById";
+import SnakeCanvas from "./pages/games";
 
 export default function App() {
   const {
@@ -18,6 +19,7 @@ export default function App() {
   const { rooms, createNewRoom } = useRoomLogic();
   const [isCreateRoom, setIsCreateRoom] = useState(false);
   const [isFindRoom, setIsFindRoom] = useState(false);
+  const [isInGame, setIsInGame] = useState(false);
   const alreadyCreatedRoom = useRef(false);
 
   // Firewall for valid user session
@@ -32,7 +34,7 @@ export default function App() {
     if (OnCreateMenu === "true") {
       setIsCreateRoom(true);
     }
-    
+
     if (OnFindMenu === "true") {
       setIsFindRoom(true);
     }
@@ -59,13 +61,19 @@ export default function App() {
           setUserName={setUserName}
           onConfirm={saveUserName}
         />
-        // Create Room or Find Room
+      ) : // Create Room or Find Room
+      isInGame ? (
+        <SnakeCanvas />
       ) : isCreateRoom ? (
-        <CreateRoom rooms={rooms} onBack={() => setIsCreateRoom(false)} />
+        <CreateRoom
+          rooms={rooms}
+          onBack={() => setIsCreateRoom(false)}
+          onStartGame={() => setIsInGame(true)}
+        />
       ) : isFindRoom ? (
         <FindRoom onBack={() => setIsFindRoom(false)} />
-        // Default Main Menu
       ) : (
+        // Default Main Menu
         <MainMenu
           onQuit={deleteUserName}
           onCreateRoom={() => setIsCreateRoom(true)}

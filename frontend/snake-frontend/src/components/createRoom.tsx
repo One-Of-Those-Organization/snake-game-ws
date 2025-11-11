@@ -3,7 +3,11 @@ import { useInputUserName } from "../hooks/useUsername";
 import type { CreateRoomProps } from "../api/interface";
 
 // Create Room
-export default function CreateRoom({ rooms, onBack }: CreateRoomProps) {
+export default function CreateRoom({
+  rooms,
+  onBack,
+  onStartGame,
+}: CreateRoomProps) {
   // Get Current Username
   const { userName } = useInputUserName();
 
@@ -40,6 +44,13 @@ export default function CreateRoom({ rooms, onBack }: CreateRoomProps) {
           </div>
         ))}
       </div>
+
+      <button
+        onClick={onStartGame}
+        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors mb-6"
+      >
+        Start Game
+      </button>
 
       {/* Technically call onBack but also remove the Creating Room status */}
       <button
