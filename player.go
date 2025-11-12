@@ -12,3 +12,10 @@ type Player struct {
 	Snake      *Snake           `json:"snake"`
 	Socket     *websocket.Conn
 };
+
+type PlayerPublic struct {
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	UniqeID int    `json:"unique_id"`
+}
+

@@ -15,22 +15,12 @@ import (
 const ARENA_SIZEX = 32
 const ARENA_SIZEY = 32
 
-type PlayerPublic struct {
-	ID      int    `json:"id"`
-	Name    string `json:"name"`
-	UniqeID int    `json:"unique_id"`
-}
-
 type Server struct {
 	PlayerConn []*Player
+	Room       []Room
 	Upgrade    websocket.Upgrader
 	Counter    int
 	Lock       sync.Mutex
-}
-
-type Message struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data"`
 }
 
 func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +33,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 	timeout := 240 * time.Second
 	conn.SetReadDeadline(time.Now().Add(timeout))
+
+	var pPtr *Player = nil
 
 	for {
 		messageType, msgBytes, err := conn.ReadMessage()
@@ -74,17 +66,17 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			s.Lock.Lock()
 			newID := s.Counter
 			s.Counter++
-			newPlayer := &Player{
+			pPtr = &Player{
 				ID:      newID,
 				Name:    name,
 				Socket:  conn,
 				Snake:   nil,
 				UniqeID: rand.Intn(math.MaxInt32),
 			}
-			s.PlayerConn = append(s.PlayerConn, newPlayer)
+			s.PlayerConn = append(s.PlayerConn, pPtr)
 			s.Lock.Unlock()
 
-			pub := PlayerPublic{ID: newPlayer.ID, Name: newPlayer.Name, UniqeID: newPlayer.UniqeID}
+			pub := PlayerPublic{ID: pPtr.ID, Name: pPtr.Name, UniqeID: pPtr.UniqeID}
 			ret := map[string]any{"type": "player", "data": pub}
 			jsonBytes, _ := json.Marshal(ret)
 			conn.WriteMessage(messageType, jsonBytes)
@@ -107,6 +99,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 						_ = p.Socket.Close()
 					}
 					p.Socket = conn
+					pPtr = p
 
 					pub := PlayerPublic{ID: p.ID, Name: p.Name, UniqeID: p.UniqeID}
 					ret := map[string]any{"type": "player", "data": pub}
@@ -122,7 +115,30 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				sendFail(conn, messageType, "Failed to reconnect with that id and unique_id")
 			}
 
+		case "create":
+			newSnake := Snake {
+				Body:      []Vector2{{X: rand.Intn(ARENA_SIZEX), Y: rand.Intn(ARENA_SIZEY)}},
+				BodyLen:   1,
+				Color:     "white", // TODO: Use randomization!
+				Direction: rand.Intn(4),
+			}
+			pPtr.Snake = &newSnake
+			newRoom := Room {
+				UniqeID: rand.Intn(math.MaxInt32),
+				Players: make([]*Player, 1),
+				Foods: make([]Food, 10),
+			}
+			newRoom.Players = append(newRoom.Players, pPtr)
+			s.Room = append(s.Room, newRoom)
+			ret := map[string]any{"type": "room", "data": newRoom}
+			jsonBytes, _ := json.Marshal(ret)
+			conn.WriteMessage(messageType, jsonBytes)
+
 		case "join":
+			if pPtr == nil {
+				sendFail(conn, messageType, "Connect first to access join.")
+				continue
+			}
 			var room int
 			if err := json.Unmarshal(incoming.Data, &room); err != nil {
 				var tmp struct {
@@ -138,8 +154,21 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			createdSnake := &Snake{
 				Body:      []Vector2{{X: rand.Intn(ARENA_SIZEX), Y: rand.Intn(ARENA_SIZEY)}},
 				BodyLen:   1,
-				Color:     "white",
+				Color:     "white", // TODO: use randomizer like before
 				Direction: rand.Intn(4),
+			}
+
+			var roomPtr *Room = nil
+			for i, r := range s.Room {
+				if r.UniqeID == room {
+					roomPtr = &r
+					break
+				}
+			}
+
+			if roomPtr == nil {
+				sendFail(conn, messageType, "There is no room with that id.")
+				continue
 			}
 
 			s.Lock.Lock()
@@ -147,8 +176,13 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				if p.Socket == conn {
 					p.Snake = createdSnake
 					if p.Room == nil {
-						// TODO: Do the whole room stuff
+						p.Room = roomPtr
+					} else {
+						sendFail(conn, messageType, "Already joined another room.")
+						break
 					}
+					// TODO: What todo when player is on other room and trying to join
+					// diff room? should it be stopped? i think it should
 
 					ret := map[string]any{"type": "snake", "data": createdSnake}
 					jsonBytes, _ := json.Marshal(ret)
@@ -158,7 +192,11 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 			s.Lock.Unlock()
 
+		case "disconnect":
+
+
 		case "input":
+			// TODO: WIP
 			var dummy any
 			_ = json.Unmarshal(incoming.Data, &dummy)
 
