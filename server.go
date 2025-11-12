@@ -181,7 +181,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 						sendFail(conn, messageType, "Already joined another room.")
 						break
 					}
-					// TODO: What todo when player is on other room and trying to join
+					// NOTE: What todo when player is on other room and trying to join
 					// diff room? should it be stopped? i think it should
 
 					ret := map[string]any{"type": "snake", "data": createdSnake}
@@ -193,12 +193,45 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			s.Lock.Unlock()
 
 		case "disconnect":
+			s.Lock.Lock()
+			if pPtr == nil {
+				sendFail(conn, messageType, "Connect first to access disconnect.")
+				continue
+			}
+			if pPtr.Room == nil {
+				sendFail(conn, messageType, "Join first to disconnect.")
+				continue
+			}
+			var index int = -1
+			for i, p := range pPtr.Room.Players {
+				if p.ID == pPtr.ID {
+					index = i
+					break
+				}
+			}
+			if index >= 0 {
+				pPtr.Room.Players = append(pPtr.Room.Players[:index], pPtr.Room.Players[index+1:]...)
+				pPtr.Room = nil
+			}
+
+			ret := map[string]any{"type": "ok", "data": true}
+			jsonBytes, _ := json.Marshal(ret)
+			conn.WriteMessage(messageType, jsonBytes)
+
+			s.Lock.Unlock()
 
 
 		case "input":
-			// TODO: WIP
-			var dummy any
-			_ = json.Unmarshal(incoming.Data, &dummy)
+			var rdata struct {
+				Direction int `json:"dir"`
+			}
+			if err := json.Unmarshal(incoming.Data, &rdata); err != nil {
+				sendFail(conn, messageType, "Failed to parse reconnect data")
+				continue
+			}
+			if (pPtr.Snake.Direction+2)%4 != int(rdata.Direction) || pPtr.Snake.BodyLen <= 1 {
+				pPtr.Snake.Direction = int(rdata.Direction)
+			}
 
 		default:
 		}
@@ -215,6 +248,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	if index >= 0 {
 		s.PlayerConn = append(s.PlayerConn[:index], s.PlayerConn[index+1:]...)
 	}
+	// TODO: Disconnect from room too
 	s.Lock.Unlock()
 
 	log.Println("Client disconnected (handler exit)")
