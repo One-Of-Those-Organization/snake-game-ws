@@ -4,7 +4,7 @@ import (
 )
 
 type Vector2 struct {
-	x, y int
+	X, Y int
 };
 
 type Snake struct {
