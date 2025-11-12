@@ -121,7 +121,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			newSnake := Snake {
 				Body:      []Vector2{{X: rand.Intn(ARENA_SIZEX), Y: rand.Intn(ARENA_SIZEY)}},
 				BodyLen:   1,
-				Color:     "white", // TODO: Use randomization!
+				Color:     generate_random_color(),
 				Direction: rand.Intn(4),
 			}
 			pPtr.Snake = &newSnake
@@ -156,7 +156,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			createdSnake := &Snake{
 				Body:      []Vector2{{X: rand.Intn(ARENA_SIZEX), Y: rand.Intn(ARENA_SIZEY)}},
 				BodyLen:   1,
-				Color:     "white", // TODO: use randomizer like before
+				Color:     generate_random_color(),
 				Direction: rand.Intn(4),
 			}
 
@@ -257,6 +257,19 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) updateGame() {
+	ticker := time.NewTicker(150 * time.Millisecond)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.Lock.Lock()
+
+		// TODO: Finish this: backup/server.go:240
+		for _, conn := range s.PlayerConn {
+			conn.Socket.WriteMessage(websocket.TextMessage, make([]byte, 10))
+		}
+
+		s.Lock.Unlock()
+	}
 }
 
 func sendFail(conn *websocket.Conn, msgType int, reason string) {
