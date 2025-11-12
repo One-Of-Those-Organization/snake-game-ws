@@ -4,7 +4,7 @@ import (
 )
 
 type Room struct {
-	UniqeID int       `json:"id"`
+	UniqeID string    `json:"id"`
 	Players []*Player `json:"players"`
 	Foods   []Food    `json:"foods"`
 };

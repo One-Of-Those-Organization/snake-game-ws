@@ -1,9 +1,11 @@
 package main
 
 import (
+	"strings"
+	"strconv"
 	"encoding/json"
 	"log"
-	"math"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -71,7 +73,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				Name:    name,
 				Socket:  conn,
 				Snake:   nil,
-				UniqeID: rand.Intn(math.MaxInt32),
+				UniqeID: strings.ToUpper(fmt.Sprintf("%05s", strconv.FormatInt(rand.Int63n(36*36*36*36*36), 36))),
 			}
 			s.PlayerConn = append(s.PlayerConn, pPtr)
 			s.Lock.Unlock()
@@ -83,8 +85,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 		case "reconnect":
 			var rdata struct {
-				ID       int `json:"id"`
-				UniqueID int `json:"unique_id"`
+				ID       int    `json:"id"`
+				UniqueID string `json:"unique_id"`
 			}
 			if err := json.Unmarshal(incoming.Data, &rdata); err != nil {
 				sendFail(conn, messageType, "Failed to parse reconnect data")
@@ -124,7 +126,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 			pPtr.Snake = &newSnake
 			newRoom := Room {
-				UniqeID: rand.Intn(math.MaxInt32),
+				UniqeID: strings.ToUpper(fmt.Sprintf("%05s", strconv.FormatInt(rand.Int63n(36*36*36*36*36), 36))),
 				Players: make([]*Player, 1),
 				Foods: make([]Food, 10),
 			}
@@ -139,10 +141,10 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				sendFail(conn, messageType, "Connect first to access join.")
 				continue
 			}
-			var room int
+			var room string
 			if err := json.Unmarshal(incoming.Data, &room); err != nil {
 				var tmp struct {
-					Room int `json:"room"`
+					Room string `json:"room"`
 				}
 				if err2 := json.Unmarshal(incoming.Data, &tmp); err2 != nil {
 					sendFail(conn, messageType, "Failed to parse join data")
@@ -159,7 +161,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var roomPtr *Room = nil
-			for i, r := range s.Room {
+			for _, r := range s.Room {
 				if r.UniqeID == room {
 					roomPtr = &r
 					break
