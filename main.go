@@ -21,6 +21,7 @@ func main() {
 	}
 
 	go s.updateGame()
+	go s.cleanupExpiredPlayers()
 
 	http.HandleFunc("/ws", s.handleConnection)
 	log.Printf("Hosted at: ws://locahost:%d\n", port)

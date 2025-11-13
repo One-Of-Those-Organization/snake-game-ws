@@ -16,6 +16,7 @@ import (
 
 const ARENA_SIZEX = 32
 const ARENA_SIZEY = 32
+const PLAYER_TIMEOUT = 5 * time.Minute
 
 type Server struct {
 	PlayerConn []*Player
@@ -41,6 +42,15 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	for {
 		messageType, msgBytes, err := conn.ReadMessage()
 		if err != nil {
+			if pPtr != nil {
+				s.Lock.Lock()
+				pPtr.Socket = nil
+				pPtr.IsConnected = false
+				now := time.Now()
+				pPtr.DisconnectedAt = &now
+				s.Lock.Unlock()
+				log.Printf("Player %d (%s) disconnected, grace period started\n", pPtr.ID, pPtr.Name)
+			}
 			log.Println("ReadMessage error / client disconnected:", err)
 			break
 		}
@@ -245,33 +255,38 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 		default:
 		}
 	}
+	log.Printf("Connection handler exiting for player: %v\n", pPtr)
+}
 
-	s.Lock.Lock()
-	if pPtr != nil {
-		if pPtr.Room != nil {
-			for i, p := range pPtr.Room.Players {
-				if p.ID == pPtr.ID {
-					pPtr.Room.Players = append(pPtr.Room.Players[:i], pPtr.Room.Players[i+1:]...)
-					break
+func (s *Server) cleanupExpiredPlayers() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.Lock.Lock()
+		now := time.Now()
+		var activePlayers []*Player
+
+		for _, p := range s.PlayerConn {
+			if p.IsConnected ||
+			   (p.DisconnectedAt != nil && now.Sub(*p.DisconnectedAt) < PLAYER_TIMEOUT) {
+				activePlayers = append(activePlayers, p)
+			} else {
+				if p.Room != nil {
+					for i, roomPlayer := range p.Room.Players {
+						if roomPlayer.ID == p.ID {
+							p.Room.Players = append(p.Room.Players[:i], p.Room.Players[i+1:]...)
+							break
+						}
+					}
 				}
+				log.Printf("Player %d (%s) removed after timeout\n", p.ID, p.Name)
 			}
 		}
 
-		index := -1
-		for i, p := range s.PlayerConn {
-			if p.Socket == conn {
-				index = i
-				break
-			}
-		}
-
-		if index >= 0 {
-			s.PlayerConn = append(s.PlayerConn[:index], s.PlayerConn[index+1:]...)
-		}
+		s.PlayerConn = activePlayers
+		s.Lock.Unlock()
 	}
-
-	s.Lock.Unlock()
-	log.Println("Client disconnected (handler exit)")
 }
 
 func (s *Server) updateGame() {
@@ -293,7 +308,13 @@ func (s *Server) updateGame() {
 						"data": p,
 					}
 					jsonBytes, _ := json.Marshal(ret)
-					p.Socket.WriteMessage(websocket.TextMessage, jsonBytes)
+
+					if p.Socket != nil { p.Socket.WriteMessage(websocket.TextMessage, jsonBytes) }
+
+					p.Room = nil
+					p.Snake = nil
+
+					log.Printf("Player %d (%s) died and removed from room %s\n", p.ID, p.Name, room.UniqeID)
 					continue
 				}
 
