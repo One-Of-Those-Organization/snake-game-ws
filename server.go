@@ -86,7 +86,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			s.Lock.Unlock()
 
 			pub := PlayerPublic{ID: pPtr.ID, Name: pPtr.Name, UniqeID: pPtr.UniqeID}
-			ret := map[string]any{"type": "player", "data": pub}
+			ret := map[string]any{"response": "connect", "type": "player", "data": pub}
 			jsonBytes, _ := json.Marshal(ret)
 			conn.WriteMessage(messageType, jsonBytes)
 
@@ -111,7 +111,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					pPtr = p
 
 					pub := PlayerPublic{ID: p.ID, Name: p.Name, UniqeID: p.UniqeID}
-					ret := map[string]any{"type": "player", "data": pub}
+					ret := map[string]any{"response": "reconnect", "type": "player", "data": pub}
 					jsonBytes, _ := json.Marshal(ret)
 					conn.WriteMessage(messageType, jsonBytes)
 					found = true
@@ -142,7 +142,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 			newRoom.Players = append(newRoom.Players, pPtr)
 			s.Room = append(s.Room, newRoom)
-			ret := map[string]any{"type": "room", "data": newRoom}
+			ret := map[string]any{"response": "create", "type": "room", "data": newRoom}
 			jsonBytes, _ := json.Marshal(ret)
 			conn.WriteMessage(messageType, jsonBytes)
 
@@ -196,7 +196,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					// NOTE: What todo when player is on other room and trying to join
 					// diff room? should it be stopped? i think it should
 
-					ret := map[string]any{"type": "snake", "data": createdSnake}
+					ret := map[string]any{"response": "join", "type": "snake", "data": createdSnake}
 					jsonBytes, _ := json.Marshal(ret)
 					conn.WriteMessage(messageType, jsonBytes)
 					break
@@ -228,7 +228,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				pPtr.Room = nil
 			}
 
-			ret := map[string]any{"type": "ok", "data": true}
+			ret := map[string]any{"response": "disconnect", "type": "ok", "data": true}
 			jsonBytes, _ := json.Marshal(ret)
 			conn.WriteMessage(messageType, jsonBytes)
 
@@ -348,8 +348,9 @@ func (s *Server) updateGame() {
 	}
 }
 
-func sendFail(conn *websocket.Conn, msgType int, reason string) {
+func sendFail(conn *websocket.Conn, msgType int, responseTo string, reason string) {
 	state := map[string]any{
+		"response": responseTo,
 		"type": "fail",
 		"data": reason,
 	}
