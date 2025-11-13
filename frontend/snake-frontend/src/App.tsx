@@ -19,7 +19,7 @@ function AppContent() {
         getPlayerData,
     } = useInputUserName();
     const { rooms, createNewRoom } = useRoomLogic();
-    const { isConnected, connect, sendMessage, playerData, reconnectFailed, clearReconnectFailed } = useWebSocketContext();
+    const { isConnected, connect, sendMessage, disconnect, playerData, reconnectFailed, clearReconnectFailed } = useWebSocketContext();
     const [isCreateRoom, setIsCreateRoom] = useState(false);
     const [isFindRoom, setIsFindRoom] = useState(false);
     const alreadyCreatedRoom = useRef(false);
@@ -201,7 +201,10 @@ function AppContent() {
         />
         ) : (
         <MainMenu
-        onQuit={deleteUserName}
+        onQuit={ () => {
+            deleteUserName();
+            disconnect();
+        }}
         onCreateRoom={() => setIsCreateRoom(true)}
         onFindRoom={() => setIsFindRoom(true)}
         />
