@@ -56,7 +56,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 		var incoming Message
 		if err := json.Unmarshal(msgBytes, &incoming); err != nil {
 			log.Println("Invalid JSON message:", err)
-			sendFail(conn, messageType, "Invalid JSON")
+			sendFail(conn, messageType, "", "Invalid JSON")
 			continue
 		}
 
@@ -66,7 +66,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			if err := json.Unmarshal(incoming.Data, &name); err != nil {
 				var tmp struct{ Name string `json:"name"` }
 				if err2 := json.Unmarshal(incoming.Data, &tmp); err2 != nil {
-					sendFail(conn, messageType, "Failed to parse connect data")
+					sendFail(conn, messageType, "connect", "Failed to parse connect data")
 					continue
 				}
 				name = tmp.Name
@@ -96,7 +96,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				UniqueID string `json:"unique_id"`
 			}
 			if err := json.Unmarshal(incoming.Data, &rdata); err != nil {
-				sendFail(conn, messageType, "Failed to parse reconnect data")
+				sendFail(conn, messageType, "reconnect", "Failed to parse reconnect data")
 				continue
 			}
 
@@ -121,12 +121,12 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			s.Lock.Unlock()
 
 			if !found {
-				sendFail(conn, messageType, "Failed to reconnect with that id and unique_id")
+				sendFail(conn, messageType, "reconnect", "Failed to reconnect with that id and unique_id")
 			}
 
 		case "create":
 			if pPtr == nil {
-				sendFail(conn, messageType, "Connect first to access create.")
+				sendFail(conn, messageType, "create", "Connect first to access create.")
 				continue
 			}
 			newSnake := Snake{
@@ -148,7 +148,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 		case "join":
 			if pPtr == nil {
-				sendFail(conn, messageType, "Connect first to access join.")
+				sendFail(conn, messageType, "join", "Connect first to access join.")
 				continue
 			}
 			var room string
@@ -157,7 +157,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					Room string `json:"room"`
 				}
 				if err2 := json.Unmarshal(incoming.Data, &tmp); err2 != nil {
-					sendFail(conn, messageType, "Failed to parse join data")
+					sendFail(conn, messageType, "join", "Failed to parse join data")
 					continue
 				}
 				room = tmp.Room
@@ -179,7 +179,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if roomPtr == nil {
-				sendFail(conn, messageType, "There is no room with that id.")
+				sendFail(conn, messageType, "join", "There is no room with that id.")
 				continue
 			}
 
@@ -190,7 +190,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 					if p.Room == nil {
 						p.Room = roomPtr
 					} else {
-						sendFail(conn, messageType, "Already joined another room.")
+						sendFail(conn, messageType, "join", "Already joined another room.")
 						break
 					}
 					// NOTE: What todo when player is on other room and trying to join
@@ -207,12 +207,12 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 		case "disconnect":
 			s.Lock.Lock()
 			if pPtr == nil {
-				sendFail(conn, messageType, "Connect first to access disconnect.")
+				sendFail(conn, messageType, "disconnect", "Connect first to access disconnect.")
 				s.Lock.Unlock()
 				continue
 			}
 			if pPtr.Room == nil {
-				sendFail(conn, messageType, "Join first to disconnect.")
+				sendFail(conn, messageType, "disconnect", "Join first to disconnect.")
 				s.Lock.Unlock()
 				continue
 			}
@@ -242,7 +242,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				Direction int `json:"dir"`
 			}
 			if err := json.Unmarshal(incoming.Data, &rdata); err != nil {
-				sendFail(conn, messageType, "Failed to parse input data")
+				sendFail(conn, messageType, "input", "Failed to parse input data")
 				continue
 			}
 			if (pPtr.Snake.Direction+2)%4 != int(rdata.Direction) || pPtr.Snake.BodyLen <= 1 {
