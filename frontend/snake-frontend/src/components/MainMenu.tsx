@@ -28,7 +28,7 @@ export default function MainMenu(props: MainMenuProps) {
         onClick={onFindRoom}
         className="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200 ease-in-out active:scale-95 font-bold"
       >
-        Search Room
+        Join Room
       </button>
 
       {/* Quit Game */}

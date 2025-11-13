@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useInputUserName } from "./hooks/useUsername";
 import { useRoomLogic } from "./hooks/roomLogic";
+import { WebSocketProvider, useWebSocketContext } from "./context/WebSocketContext";
 import NameInput from "./components/inputUsername";
 import MainMenu from "./components/MainMenu";
 import CreateRoom from "./components/createRoom";
 import FindRoom from "./components/findRoomById";
 import SnakeCanvas from "./pages/games";
 
-export default function App() {
+function AppContent() {
   const {
     userName,
     userSession,
@@ -17,6 +18,7 @@ export default function App() {
     deleteUserName,
   } = useInputUserName();
   const { rooms, createNewRoom } = useRoomLogic();
+  const { isConnected } = useWebSocketContext();
   const [isCreateRoom, setIsCreateRoom] = useState(false);
   const [isFindRoom, setIsFindRoom] = useState(false);
   const alreadyCreatedRoom = useRef(false);
@@ -45,7 +47,6 @@ export default function App() {
   const OnCreateMenu = localStorage.getItem("InCreatingRoom");
   const OnFindMenu = localStorage.getItem("InFindingRoom");
 
-  // Sorry i use useEffect, because i don't know other better way :)
   useEffect(() => {
     if (OnCreateMenu === "true") {
       setIsCreateRoom(true);
@@ -56,7 +57,6 @@ export default function App() {
     }
   }, [OnCreateMenu, OnFindMenu]);
 
-  // Same thing here, to prevent multiple room creation on re-renders
   useEffect(() => {
     if (isCreateRoom && !alreadyCreatedRoom.current) {
       createNewRoom();
@@ -65,9 +65,23 @@ export default function App() {
     if (!isCreateRoom) {
       alreadyCreatedRoom.current = false;
     }
-  }, [isCreateRoom]);
+  }, [isCreateRoom, createNewRoom]);
 
-  // At least the return is simplyfied by separating components
+  // CRITICAL: If not connected OR no valid session, show NameInput
+  // This prevents users from proceeding without a valid WebSocket connection
+  if (!isConnected || !isValid) {
+    return (
+      <div className="w-screen h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
+        <NameInput
+          userName={userName}
+          setUserName={setUserName}
+          onConfirm={saveUserName}
+        />
+      </div>
+    );
+  }
+
+  // Only render other pages if both connected AND valid session
   return (
     <div className="w-screen h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
       {currentGame ? (
@@ -75,12 +89,6 @@ export default function App() {
           roomId={currentGame.roomId}
           playerName={currentGame.playerName}
           onBack={handleLeaveGame}
-        />
-      ) : !isValid && isFirstLogin ? (
-        <NameInput
-          userName={userName}
-          setUserName={setUserName}
-          onConfirm={saveUserName}
         />
       ) : isCreateRoom ? (
         <CreateRoom
@@ -103,5 +111,13 @@ export default function App() {
         />
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <WebSocketProvider>
+      <AppContent />
+    </WebSocketProvider>
   );
 }
