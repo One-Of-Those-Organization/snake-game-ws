@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { UserData } from "../api/interface";
 import { useWebSocketContext } from "../context/WebSocketContext";
 
 export default function NameInput(props: UserData) {
   const { userName, setUserName, onConfirm } = props;
-  const { sendMessage, isConnected, connect } = useWebSocketContext();
+  const { sendMessage, isConnected, connect, playerData } = useWebSocketContext();
 
   // Server configuration state
   const [serverIp, setServerIp] = useState(() => {
@@ -15,6 +15,14 @@ export default function NameInput(props: UserData) {
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Watch for playerData changes and trigger onConfirm when received
+  useEffect(() => {
+    if (playerData && isConnected) {
+      console.log("Player data received, calling onConfirm");
+      onConfirm(playerData.name);
+    }
+  }, [playerData, isConnected, onConfirm]);
 
   const handleConfirm = async () => {
     if (!userName.trim()) {
@@ -51,20 +59,22 @@ export default function NameInput(props: UserData) {
       // Send connect message with username
       sendMessage({ type: "connect", data: { name: userName } });
 
-      // Wait for server response before proceeding
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // IMPORTANT: Call onConfirm AFTER everything is set up
-      // This will save the username to localStorage and update session
-      onConfirm(userName);
+      // Wait for server to respond with player data
+      // The useEffect above will call onConfirm when playerData is received
 
     } catch (err) {
       console.error("Failed to connect:", err);
       setError(`Failed to connect to ${wsUrl}. Please check the server address and try again.`);
-    } finally {
       setIsConnecting(false);
     }
   };
+
+  // Reset connecting state when playerData is received
+  useEffect(() => {
+    if (playerData) {
+      setIsConnecting(false);
+    }
+  }, [playerData]);
 
   return (
     <div className="p-8 bg-gray-800 rounded-lg shadow-lg flex flex-col items-center w-80">
@@ -74,16 +84,16 @@ export default function NameInput(props: UserData) {
       </h2>
 
       {/* Connection Status */}
-      {isConnected && (
+      {isConnected && playerData && (
         <div className="w-full mb-2 p-2 bg-green-900 rounded text-green-400 text-sm text-center">
-          ✓ Connected to server
+            Connected as {playerData.name} (ID: {playerData.id})
         </div>
       )}
 
       {/* Error Message */}
       {error && (
         <div className="w-full mb-2 p-2 bg-red-900 rounded text-red-400 text-sm text-center">
-          ⚠ {error}
+          ERROR: {error}
         </div>
       )}
 

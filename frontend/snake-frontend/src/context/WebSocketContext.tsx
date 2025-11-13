@@ -1,8 +1,15 @@
 import { createContext, useContext, ReactNode, useRef, useState, useCallback } from 'react';
 
+interface PlayerData {
+  id: number;
+  name: string;
+  unique_id: string;
+}
+
 interface WebSocketContextType {
   ws: WebSocket | null;
   isConnected: boolean;
+  playerData: PlayerData | null;
   sendMessage: (message: any) => void;
   gameState: any;
   playerSnake: any;
@@ -18,6 +25,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [gameState, setGameState] = useState<any>(null);
   const [playerSnake, setPlayerSnake] = useState<any>(null);
+  const [playerData, setPlayerData] = useState<PlayerData | null>(null);
 
   const connect = useCallback((url: string): Promise<boolean> => {
     return new Promise((resolve, reject) => {
@@ -49,9 +57,20 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
           switch (msg.type) {
             case "player":
-              // Sent when player connects - contains ID, Name, UniqeID
-              console.log("Player data:", msg.data);
-              setPlayerSnake(msg.data);
+              // Store player data from server
+              const player: PlayerData = {
+                id: msg.data.id,
+                name: msg.data.name,
+                unique_id: msg.data.unique_id,
+              };
+              setPlayerData(player);
+
+              // Save to localStorage
+              localStorage.setItem("playerId", player.id.toString());
+              localStorage.setItem("playerName", player.name);
+              localStorage.setItem("playerUniqueId", player.unique_id);
+
+              console.log("Player data saved:", player);
               break;
 
             case "room":
@@ -116,6 +135,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       wsRef.current = null;
     }
     setIsConnected(false);
+    setPlayerData(null);
   }, []);
 
   const sendMessage = useCallback((message: any) => {
@@ -137,6 +157,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     <WebSocketContext.Provider value={{
       ws: wsRef.current,
       isConnected,
+      playerData,
       sendMessage,
       gameState,
       playerSnake,

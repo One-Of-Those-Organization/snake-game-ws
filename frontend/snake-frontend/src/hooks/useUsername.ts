@@ -3,45 +3,60 @@ import { useState } from "react";
 // Hook to Manage User Name Input and Session
 export function useInputUserName() {
   const [userName, setUserName] = useState(
-    () => localStorage.getItem("userName") || ""
+    () => localStorage.getItem("playerName") || ""
   );
   const [isFirstLogin, setIsFirstLogin] = useState(
-    () => !localStorage.getItem("userName")
+    () => !localStorage.getItem("playerName")
   );
 
-  // Handle Save User Name (For now Local Storage)
-  // Save the User ID here later when integrating with backend
+  // Save player data received from server
   const saveUserName = () => {
-    if (!isFirstLogin) return;
+    // Check if player data exists in localStorage (set by WebSocketContext)
+    const playerId = localStorage.getItem("playerId");
+    const playerName = localStorage.getItem("playerName");
+    const playerUniqueId = localStorage.getItem("playerUniqueId");
 
-    const randomId = Math.floor(10000 + Math.random() * 90000).toString();
-
-    if (userName.trim() !== "") {
-      localStorage.setItem("userName", userName);
-      localStorage.setItem("userId", randomId);
+    if (playerId && playerName && playerUniqueId) {
       setIsFirstLogin(false);
+      console.log("User session validated:", { playerId, playerName, playerUniqueId });
     }
   };
 
   // Check User Session Validity
   const userSession = () => {
-    const currentUserName = localStorage.getItem("userName");
-    const sessionUserName = localStorage.getItem("userId");
+    const playerId = localStorage.getItem("playerId");
+    const playerName = localStorage.getItem("playerName");
+    const playerUniqueId = localStorage.getItem("playerUniqueId");
 
-    return Boolean(currentUserName && sessionUserName);
+    return Boolean(playerId && playerName && playerUniqueId);
   };
 
-  // Handle Delete User Name (Can be used for logout and switching accounts)
-  // Delete the User ID here later when integrating with backend
+  // Handle Delete User Name (Logout)
   const deleteUserName = () => {
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userId");
+    localStorage.removeItem("playerId");
+    localStorage.removeItem("playerName");
+    localStorage.removeItem("playerUniqueId");
+    localStorage.removeItem("serverIp");
+    localStorage.removeItem("serverPort");
     setUserName("");
     setIsFirstLogin(true);
   };
 
+  // Get stored player data for reconnection
+  const getPlayerData = () => {
+    const playerId = localStorage.getItem("playerId");
+    const playerUniqueId = localStorage.getItem("playerUniqueId");
+
+    if (playerId && playerUniqueId) {
+      return {
+        id: parseInt(playerId),
+        unique_id: playerUniqueId,
+      };
+    }
+    return null;
+  };
+
   // Return necessary states and functions
-    // NOTE : If want to add some more, make sure to return (because i always almost forgot)
   return {
     userName,
     setUserName,
@@ -49,5 +64,6 @@ export function useInputUserName() {
     saveUserName,
     userSession,
     deleteUserName,
+    getPlayerData,
   };
 }
