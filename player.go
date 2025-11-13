@@ -12,8 +12,7 @@ type Player struct {
 	UniqeID         string           `json:"unique_id"`
 	Snake           *Snake           `json:"snake"`
 	Socket          *websocket.Conn  `json:"-"`
-	DisconnectedAt  *time.Time       `json:"-"`
-	IsConnected     bool             `json:"-"`
+	LastActive      time.Time        `json:"-"`
 }
 
 type PlayerPublic struct {

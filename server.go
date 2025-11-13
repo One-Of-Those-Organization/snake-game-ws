@@ -45,11 +45,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			if pPtr != nil {
 				s.Lock.Lock()
 				pPtr.Socket = nil
-				pPtr.IsConnected = false
-				now := time.Now()
-				pPtr.DisconnectedAt = &now
+				pPtr.LastActive = time.Now()
 				s.Lock.Unlock()
-				log.Printf("Player %d (%s) disconnected, grace period started\n", pPtr.ID, pPtr.Name)
 			}
 			log.Println("ReadMessage error / client disconnected:", err)
 			break
@@ -255,38 +252,30 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 		default:
 		}
 	}
+	if pPtr != nil {
+		pPtr.Socket = nil
+		pPtr.LastActive = time.Now()
+	}
 	log.Printf("Connection handler exiting for player: %v\n", pPtr)
 }
 
-func (s *Server) cleanupExpiredPlayers() {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		s.Lock.Lock()
+func (s *Server) cleanUpService() {
+	s.Lock.Lock()
+	for i := range s.PlayerConn {
+		p := s.PlayerConn[i]
 		now := time.Now()
-		var activePlayers []*Player
-
-		for _, p := range s.PlayerConn {
-			if p.IsConnected ||
-			   (p.DisconnectedAt != nil && now.Sub(*p.DisconnectedAt) < PLAYER_TIMEOUT) {
-				activePlayers = append(activePlayers, p)
-			} else {
-				if p.Room != nil {
-					for i, roomPlayer := range p.Room.Players {
-						if roomPlayer.ID == p.ID {
-							p.Room.Players = append(p.Room.Players[:i], p.Room.Players[i+1:]...)
-							break
-						}
-					}
+		if p.Socket != nil { continue }
+		if now.After(p.LastActive.Add(PLAYER_TIMEOUT)) {
+			for j := range p.Room.Players {
+				if p.ID == p.Room.Players[j].ID {
+					p.Room.Players = append(p.Room.Players[:j], p.Room.Players[j+1:]...)
+					break
 				}
-				log.Printf("Player %d (%s) removed after timeout\n", p.ID, p.Name)
 			}
+			p.Room = nil
 		}
-
-		s.PlayerConn = activePlayers
-		s.Lock.Unlock()
 	}
+	s.Lock.Unlock()
 }
 
 func (s *Server) updateGame() {
