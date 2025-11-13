@@ -10,7 +10,7 @@ type Player struct {
 	Room       *Room            `json:"room"`
 	UniqeID    string           `json:"uniqe"`
 	Snake      *Snake           `json:"snake"`
-	Socket     *websocket.Conn
+	Socket     *websocket.Conn  `json:"-"`
 };
 
 type PlayerPublic struct {

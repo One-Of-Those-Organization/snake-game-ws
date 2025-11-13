@@ -240,6 +240,13 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.Lock.Lock()
+	for i, p := range pPtr.Room.Players {
+		if p.ID == pPtr.ID {
+			pPtr.Room.Players = append(pPtr.Room.Players[:i], pPtr.Room.Players[i+1:]...)
+			break
+		}
+	}
+
 	index := -1
 	for i, p := range s.PlayerConn {
 		if p.Socket == conn {
@@ -247,10 +254,11 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+
 	if index >= 0 {
 		s.PlayerConn = append(s.PlayerConn[:index], s.PlayerConn[index+1:]...)
 	}
-	// TODO: Disconnect from room too
+
 	s.Lock.Unlock()
 
 	log.Println("Client disconnected (handler exit)")
@@ -262,10 +270,42 @@ func (s *Server) updateGame() {
 
 	for range ticker.C {
 		s.Lock.Lock()
+		for _, room := range s.Room {
+			foundDeath := -1
+			for i, p := range room.Players {
+				if p.Snake.Dead {
+					if foundDeath < 0 { foundDeath = i }
+					continue
+				}
 
-		// TODO: Finish this: backup/server.go:240
-		for _, conn := range s.PlayerConn {
-			conn.Socket.WriteMessage(websocket.TextMessage, make([]byte, 10))
+				p.Snake.move()
+				p.Snake.checkSelfCollision()
+				s.checkFoodCollision(p)
+				s.checkSnakesCollision(p)
+			}
+			if foundDeath >= 0 {
+				ret := map[string]any{
+					"type": "broadcast_snake_ded",
+					"data": room.Players[foundDeath],
+				}
+				jsonBytes, _ := json.Marshal(ret)
+				room.Players[foundDeath].Socket.WriteMessage(websocket.TextMessage, jsonBytes)
+				// TODO: Delete from room and from the player array  at the server
+			}
+			for len(room.Foods) < len(room.Players) { s.spawnFood(&room) }
+
+			roomBroadcast := map[string]any{
+				"type": "broadcast_room",
+				"data": map[string]any{
+					"snakes": room.Players,
+					"foods":  room.Foods,
+				},
+			}
+
+			jsonBytes, _ := json.Marshal(roomBroadcast)
+			for _, p := range room.Players {
+				p.Socket.WriteMessage(websocket.TextMessage, jsonBytes)
+			}
 		}
 
 		s.Lock.Unlock()
@@ -279,4 +319,42 @@ func sendFail(conn *websocket.Conn, msgType int, reason string) {
 	}
 	jsonBytes, _ := json.Marshal(state)
 	_ = conn.WriteMessage(msgType, jsonBytes)
+}
+
+func (s *Server) spawnFood(room *Room) {
+	f := Food {
+		Position: Vector2 {
+			X: rand.Intn(ARENA_SIZEX),
+			Y: rand.Intn(ARENA_SIZEY),
+		},
+	}
+	room.Foods = append(room.Foods, f)
+}
+
+func (s *Server) checkSnakesCollision(player *Player) {
+	if len(player.Snake.Body) == 0 || player.Snake.Dead { return }
+	head := player.Snake.Body[0]
+
+	for _, p := range player.Room.Players {
+		if p.ID == player.ID || p.Snake.Dead { continue }
+		for _, seg := range p.Snake.Body {
+			if head.X == seg.X && head.Y == seg.Y {
+				player.Snake.Dead = true
+				return
+			}
+		}
+	}
+}
+
+func (s *Server) checkFoodCollision(player *Player) {
+	if len(player.Snake.Body) == 0 { return }
+	head := player.Snake.Body[0]
+	for i, f := range player.Room.Foods {
+		if f.Position.X == head.X && f.Position.Y == head.Y {
+			player.Room.Foods = append(player.Room.Foods[:i], player.Room.Foods[i+1:]...)
+			s.spawnFood(player.Room)
+			player.Snake.BodyLen++
+			break
+		}
+	}
 }
