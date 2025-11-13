@@ -118,7 +118,11 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "create":
-			newSnake := Snake {
+			if pPtr == nil {
+				sendFail(conn, messageType, "Connect first to access create.")
+				continue
+			}
+			newSnake := Snake{
 				Body:      []Vector2{{X: rand.Intn(ARENA_SIZEX), Y: rand.Intn(ARENA_SIZEY)}},
 				BodyLen:   1,
 				Color:     generate_random_color(),
@@ -197,10 +201,12 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			s.Lock.Lock()
 			if pPtr == nil {
 				sendFail(conn, messageType, "Connect first to access disconnect.")
+				s.Lock.Unlock()
 				continue
 			}
 			if pPtr.Room == nil {
 				sendFail(conn, messageType, "Join first to disconnect.")
+				s.Lock.Unlock()
 				continue
 			}
 			var index int = -1
@@ -221,13 +227,15 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 			s.Lock.Unlock()
 
-
 		case "input":
+			if pPtr == nil || pPtr.Snake == nil {
+				continue
+			}
 			var rdata struct {
 				Direction int `json:"dir"`
 			}
 			if err := json.Unmarshal(incoming.Data, &rdata); err != nil {
-				sendFail(conn, messageType, "Failed to parse reconnect data")
+				sendFail(conn, messageType, "Failed to parse input data")
 				continue
 			}
 			if (pPtr.Snake.Direction+2)%4 != int(rdata.Direction) || pPtr.Snake.BodyLen <= 1 {
@@ -239,27 +247,30 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.Lock.Lock()
-	for i, p := range pPtr.Room.Players {
-		if p.ID == pPtr.ID {
-			pPtr.Room.Players = append(pPtr.Room.Players[:i], pPtr.Room.Players[i+1:]...)
-			break
+	if pPtr != nil {
+		if pPtr.Room != nil {
+			for i, p := range pPtr.Room.Players {
+				if p.ID == pPtr.ID {
+					pPtr.Room.Players = append(pPtr.Room.Players[:i], pPtr.Room.Players[i+1:]...)
+					break
+				}
+			}
 		}
-	}
 
-	index := -1
-	for i, p := range s.PlayerConn {
-		if p.Socket == conn {
-			index = i
-			break
+		index := -1
+		for i, p := range s.PlayerConn {
+			if p.Socket == conn {
+				index = i
+				break
+			}
 		}
-	}
 
-	if index >= 0 {
-		s.PlayerConn = append(s.PlayerConn[:index], s.PlayerConn[index+1:]...)
+		if index >= 0 {
+			s.PlayerConn = append(s.PlayerConn[:index], s.PlayerConn[index+1:]...)
+		}
 	}
 
 	s.Lock.Unlock()
-
 	log.Println("Client disconnected (handler exit)")
 }
 
