@@ -5,7 +5,7 @@ import { useWebSocketContext } from "../context/WebSocketContext";
 export default function NameInput(props: UserData) {
   const { userName, setUserName, onConfirm } = props;
   const { sendMessage, isConnected, connect } = useWebSocketContext();
-  
+
   // Server configuration state
   const [serverIp, setServerIp] = useState(() => {
     return localStorage.getItem("serverIp") || "localhost";
@@ -32,34 +32,32 @@ export default function NameInput(props: UserData) {
 
     // Build WebSocket URL
     const wsUrl = `ws://${serverIp}:${serverPort}/ws`;
-    
+
     try {
       // Connect to WebSocket (wait for connection to establish)
       const connected = await connect(wsUrl);
-      
+
       if (!connected) {
         throw new Error("Failed to establish connection");
       }
-      
+
       // Save server config to localStorage
       localStorage.setItem("serverIp", serverIp);
       localStorage.setItem("serverPort", serverPort);
-      
+
       // Wait a bit for connection to stabilize
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       // Send connect message with username
       sendMessage({ type: "connect", data: { name: userName } });
-      
+
       // Wait for server response before proceeding
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
       // IMPORTANT: Call onConfirm AFTER everything is set up
       // This will save the username to localStorage and update session
       onConfirm(userName);
-      
-      console.log("Setup complete, should redirect now");
-      
+
     } catch (err) {
       console.error("Failed to connect:", err);
       setError(`Failed to connect to ${wsUrl}. Please check the server address and try again.`);
