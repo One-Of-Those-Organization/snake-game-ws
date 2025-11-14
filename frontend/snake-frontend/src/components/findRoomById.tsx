@@ -10,15 +10,17 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   // Set Joining Room Status
   const [isJoining, setIsJoining] = useState(false);
-
-  // Get join error from WebSocket Context
-  const { joinError, clearJoinError, sendMessage, playerSnake } =
-    useWebSocketContext();
+  // Get WebSocket Context
+  const {joinError, clearJoinError, sendMessage, playerSnake } = useWebSocketContext();
 
   // Another useEffect to Check Current User Status
   useEffect(() => {
     localStorage.setItem("InFindingRoom", "true");
-  }, []);
+
+    return () => {
+      clearJoinError();
+    }
+  }, [clearJoinError]);
 
   useEffect(() => {
     if (playerSnake && isJoining) {
@@ -32,6 +34,7 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
 
   useEffect(() => {
     if (joinError) {
+      console.log("Failed to join room:", joinError);
       setIsJoining(false);
       // Reset room ID input
       setRoomId(["", "", "", "", ""]);
@@ -42,7 +45,7 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
   // Handle Input Changes only numbers and auto-focus
   const handleChange = (index: number, value: string) => {
     // Only allow numbers
-    if (value && !/^\d$/.test(value)) return;
+    // if (value && !/^\d$/.test(value)) return;
 
     const newRoomId = [...roomId];
     newRoomId[index] = value.toUpperCase();
@@ -60,6 +63,10 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
     // Backspace: go to previous input
     if (e.key === "Backspace" && !roomId[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
+    }
+
+    if (e.key === "Enter") {
+      handleJoinRoom();
     }
   };
 

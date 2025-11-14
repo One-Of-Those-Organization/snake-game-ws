@@ -12,9 +12,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     const [playerData, setPlayerData] = useState<PlayerData | null>(null);
     const [reconnectFailed, setReconnectFailed] = useState(false);
     const [createdRoom, setCreatedRoom] = useState<any | null>(null);
+    const [joinError, setJoinError] = useState<string | null>(null);
 
     const clearReconnectFailed = useCallback(() => {
         setReconnectFailed(false);
+    }, []);
+
+    const clearJoinError = useCallback(() => {
+        setJoinError(null);
     }, []);
 
     const connect = useCallback((url: string): Promise<boolean> => {
@@ -72,6 +77,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                             // Sent when joining a room - contains snake data
                             console.log("Snake data:", msg.data);
                             setPlayerSnake(msg.data);
+                            setJoinError(null);
+                            break;
                         break;
 
                         case "broadcast_room":
@@ -93,6 +100,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                         case "fail":
                             // Error message from server
                             console.error("Server error:", msg.data);
+                            if (msg.data.context === "join_room") {
+                                setJoinError(msg.data.message);
+                            }
 
                         // Check if this is a reconnect failure
                         if (msg.response === "reconnect") {
@@ -166,8 +176,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             reconnectFailed,
             clearReconnectFailed,
             createdRoom,
-            joinError: null,
-            clearJoinError: () => {},
+            joinError,
+            clearJoinError,
         }}>
         {children}
         </WebSocketContext.Provider>
