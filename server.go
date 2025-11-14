@@ -130,6 +130,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				sendFail(conn, messageType, "create", "Connect first to access create.")
 				continue
 			}
+			if pPtr.Room != nil { continue }
+
 			newSnake := Snake{
 				Body:      []Vector2{{X: rand.Intn(ARENA_SIZEX), Y: rand.Intn(ARENA_SIZEY)}},
 				BodyLen:   1,
@@ -231,6 +233,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				pPtr.Room.Players = append(pPtr.Room.Players[:index], pPtr.Room.Players[index+1:]...)
 				pPtr.Room = nil
 			}
+			sendFail(conn, messageType, "disconnect", "Failed to disconnect the player.")
 
 			ret := map[string]any{"response": "disconnect", "type": "ok", "data": true}
 			jsonBytes, _ := json.Marshal(ret)
