@@ -42,7 +42,7 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
             lastUpdateTimeRef.current = Date.now();
             setInterpolatedState(gameState);
         }
-    }, [gameState]);
+    }, [gameState, interpolatedState]);
 
     // Render game canvas with smooth interpolation
     useEffect(() => {
@@ -68,15 +68,16 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
                 const timeSinceUpdate = Date.now() - lastUpdateTimeRef.current;
                 const interpolationFactor = Math.min(timeSinceUpdate / SERVER_TICK_RATE, 1);
 
-                // Render foods (no interpolation needed)
+                // Render foods - simple rendering without animation
                 const foods = interpolatedState.foods || interpolatedState.Foods;
                 if (foods && Array.isArray(foods)) {
                     ctx.fillStyle = "#EF4444"; // Red
 
                     foods.forEach((food: any) => {
-                        const position = food.Position || food.position || food;
-                        const x = position.X ?? position.x;
-                        const y = position.Y ?? position.y;
+                        // Handle: food.pos.x/y OR food.Position.X/Y OR food.x/y
+                        const pos = food.pos || food.Pos || food.Position || food.position || food;
+                        const x = pos.x ?? pos.X;
+                        const y = pos.y ?? pos.Y;
 
                         if (x !== undefined && y !== undefined) {
                             ctx.fillRect(
@@ -89,31 +90,31 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
                     });
                 }
 
-                // Render snakes with interpolation
+                // Render snakes with smooth interpolation
                 const players = interpolatedState.snakes || interpolatedState.Snakes || interpolatedState.players || interpolatedState.Players;
                 const prevPlayers = prevGameStateRef.current ? 
                     (prevGameStateRef.current.snakes || prevGameStateRef.current.Snakes || prevGameStateRef.current.players || prevGameStateRef.current.Players) : 
                     null;
 
                 if (players && Array.isArray(players)) {
-                    players.forEach((player: any, playerIndex: number) => {
-                        const snake = player.Snake || player.snake;
-                        const playerId = player.ID ?? player.id ?? player.PlayerId ?? player.player_id;
+                    players.forEach((player: any) => {
+                        const snake = player.snake || player.Snake;
+                        const playerId = player.id ?? player.ID ?? player.PlayerId ?? player.player_id;
                         const currentPlayerId = playerData?.id;
 
                         if (snake) {
-                            const body = snake.Body || snake.body;
+                            const body = snake.body || snake.Body;
 
                             // Find previous position for this player
                             let prevBody = null;
                             if (prevPlayers && Array.isArray(prevPlayers)) {
                                 const prevPlayer = prevPlayers.find((p: any) => {
-                                    const prevId = p.ID ?? p.id ?? p.PlayerId ?? p.player_id;
+                                    const prevId = p.id ?? p.ID ?? p.PlayerId ?? p.player_id;
                                     return prevId === playerId;
                                 });
                                 if (prevPlayer) {
-                                    const prevSnake = prevPlayer.Snake || prevPlayer.snake;
-                                    prevBody = prevSnake?.Body || prevSnake?.body;
+                                    const prevSnake = prevPlayer.snake || prevPlayer.Snake;
+                                    prevBody = prevSnake?.body || prevSnake?.Body;
                                 }
                             }
 
@@ -121,8 +122,8 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
                                 const isCurrentPlayer = playerId === currentPlayerId;
 
                                 body.forEach((segment: any, index: number) => {
-                                    const currX = segment.X ?? segment.x;
-                                    const currY = segment.Y ?? segment.y;
+                                    const currX = segment.x ?? segment.X;
+                                    const currY = segment.y ?? segment.Y;
 
                                     if (currX !== undefined && currY !== undefined) {
                                         let renderX = currX;
@@ -130,8 +131,8 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
 
                                         // Interpolate position if we have previous data
                                         if (prevBody && prevBody[index] && interpolationFactor < 1) {
-                                            const prevX = prevBody[index].X ?? prevBody[index].x;
-                                            const prevY = prevBody[index].Y ?? prevBody[index].y;
+                                            const prevX = prevBody[index].x ?? prevBody[index].X;
+                                            const prevY = prevBody[index].y ?? prevBody[index].Y;
 
                                             if (prevX !== undefined && prevY !== undefined) {
                                                 // Only interpolate if distance is 1 cell (normal movement)
@@ -149,7 +150,7 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
                                         if (isCurrentPlayer) {
                                             ctx.fillStyle = index === 0 ? "#10B981" : "#22D3EE";
                                         } else {
-                                            ctx.fillStyle = snake.Color || snake.color || "#FFFFFF";
+                                            ctx.fillStyle = snake.color || snake.Color || "#FFFFFF";
                                         }
 
                                         ctx.fillRect(
@@ -188,16 +189,16 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
         if (!players || !Array.isArray(players)) return 0;
 
         const currentPlayer = players.find((p: any) => {
-            const playerId = p.ID ?? p.id ?? p.PlayerId ?? p.player_id;
+            const playerId = p.id ?? p.ID ?? p.PlayerId ?? p.player_id;
             return playerId === playerData.id;
         });
 
         if (!currentPlayer) return 0;
 
-        const snake = currentPlayer.Snake || currentPlayer.snake;
+        const snake = currentPlayer.snake || currentPlayer.Snake;
         if (!snake) return 0;
 
-        return snake.BodyLen ?? snake.bodyLen ?? snake.Body?.length ?? snake.body?.length ?? 0;
+        return snake.body_len ?? snake.bodyLen ?? snake.BodyLen ?? snake.body?.length ?? snake.Body?.length ?? 0;
     })();
 
     // Get player count
@@ -209,64 +210,64 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
 
     return (
         <div className="relative flex flex-col justify-center items-center w-screen h-screen bg-gradient-to-br from-gray-900 to-gray-800">
-        {/* Connection Status */}
-        <div className="absolute top-4 left-4 flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
-        <span className={`text-sm font-semibold ${isConnected ? "text-green-400" : "text-red-400"}`}>
-        {isConnected ? "Connected" : "Disconnected"}
-        </span>
-        </div>
-
-        {/* Quit Button */}
-        <div className="absolute top-4 right-4">
-        <button
-        onClick={onBack}
-        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-bold shadow-lg"
-        >
-        Leave Room
-        </button>
-        </div>
-
-        {/* Room ID Display */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 p-4 bg-gray-800 rounded-xl shadow-2xl border border-gray-700">
-        <p className="text-gray-400 text-xs font-semibold text-center mb-2">
-        Room ID - Share with friends!
-        </p>
-        <div className="flex justify-center gap-2">
-        {roomId.split("").map((digit, index) => (
-            <div
-            key={index}
-            className="w-8 h-10 bg-gray-700 text-white text-lg font-bold flex items-center justify-center rounded-md shadow-inner border border-gray-600"
-            >
-            {digit}
+            {/* Connection Status */}
+            <div className="absolute top-4 left-4 flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+                <span className={`text-sm font-semibold ${isConnected ? "text-green-400" : "text-red-400"}`}>
+                    {isConnected ? "Connected" : "Disconnected"}
+                </span>
             </div>
-        ))}
-        </div>
-        <p className="text-gray-500 text-xs text-center mt-2">
-        Players: {playerCount}
-        </p>
-        </div>
 
-        {/* Game Canvas */}
-        <canvas
-        ref={canvasRef}
-        width={512}
-        height={512}
-        className="border-4 border-gray-700 rounded-lg shadow-2xl w-[80vmin] h-[80vmin]"
-        style={{ imageRendering: "pixelated" }}
-        />
+            {/* Quit Button */}
+            <div className="absolute top-4 right-4">
+                <button
+                    onClick={onBack}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-bold shadow-lg"
+                >
+                    Leave Room
+                </button>
+            </div>
 
-        {/* Controls Info */}
-        <div className="absolute bottom-8 left-8 text-gray-400 text-sm">
-        <p className="font-semibold mb-1">Controls</p>
-        <p className="text-xs">Arrow Keys / WASD to move</p>
-        </div>
+            {/* Room ID Display */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 p-4 bg-gray-800 rounded-xl shadow-2xl border border-gray-700">
+                <p className="text-gray-400 text-xs font-semibold text-center mb-2">
+                    Room ID - Share with friends!
+                </p>
+                <div className="flex justify-center gap-2">
+                    {roomId.split("").map((digit, index) => (
+                        <div
+                            key={index}
+                            className="w-8 h-10 bg-gray-700 text-white text-lg font-bold flex items-center justify-center rounded-md shadow-inner border border-gray-600"
+                        >
+                            {digit}
+                        </div>
+                    ))}
+                </div>
+                <p className="text-gray-500 text-xs text-center mt-2">
+                    Players: {playerCount}
+                </p>
+            </div>
 
-        {/* Player Score */}
-        <div className="absolute bottom-8 right-8 p-3 bg-gray-800 rounded-lg border border-gray-700 shadow-lg">
-        <p className="text-gray-400 text-xs mb-1">Your Score</p>
-        <p className="text-white text-2xl font-bold">{currentScore}</p>
-        </div>
+            {/* Game Canvas */}
+            <canvas
+                ref={canvasRef}
+                width={512}
+                height={512}
+                className="border-4 border-gray-700 rounded-lg shadow-2xl w-[80vmin] h-[80vmin]"
+                style={{ imageRendering: "pixelated" }}
+            />
+
+            {/* Controls Info */}
+            <div className="absolute bottom-8 left-8 text-gray-400 text-sm">
+                <p className="font-semibold mb-1">Controls</p>
+                <p className="text-xs">Arrow Keys / WASD to move</p>
+            </div>
+
+            {/* Player Score */}
+            <div className="absolute bottom-8 right-8 p-3 bg-gray-800 rounded-lg border border-gray-700 shadow-lg">
+                <p className="text-gray-400 text-xs mb-1">Your Score</p>
+                <p className="text-white text-2xl font-bold">{currentScore}</p>
+            </div>
         </div>
     );
 }

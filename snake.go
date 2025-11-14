@@ -4,7 +4,8 @@ import (
 )
 
 type Vector2 struct {
-	X, Y int
+	X int `json:"x"`
+	Y int `json:"y"`
 };
 
 type Snake struct {
