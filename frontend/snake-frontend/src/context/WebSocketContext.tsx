@@ -79,7 +79,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                             setPlayerSnake(msg.data);
                             setJoinError(null);
                             break;
-                        break;
 
                         case "broadcast_room":
                             // Game state broadcast - contains snakes and foods
@@ -100,7 +99,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                         case "fail":
                             // Error message from server
                             console.error("Server error:", msg.data);
-                            if (msg.data.context === "join_room") {
+                            if (msg.data.context === "join") {
                                 setJoinError(msg.data.message);
                             }
 
