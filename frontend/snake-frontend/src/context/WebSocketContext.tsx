@@ -165,7 +165,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             disconnect,
             reconnectFailed,
             clearReconnectFailed,
-            createdRoom
+            createdRoom,
+            joinError: null,
+            clearJoinError: () => {},
         }}>
         {children}
         </WebSocketContext.Provider>
