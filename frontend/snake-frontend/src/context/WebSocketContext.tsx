@@ -22,6 +22,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         setJoinError(null);
     }, []);
 
+    // ✅ Clear all room-related state
+    const clearRoomState = useCallback(() => {
+        console.log("Clearing room state");
+        setCreatedRoom(null);
+        setPlayerSnake(null);
+        setGameState(null);
+    }, []);
+
     const connect = useCallback((url: string): Promise<boolean> => {
         return new Promise((resolve, reject) => {
             // Close existing connection if any
@@ -71,6 +79,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                         case "room":
                             console.log("Room created:", msg.data);
                             setCreatedRoom(msg.data);
+                            // ✅ Store room ID when created
+                            if (msg.data.id) {
+                                localStorage.setItem("currentRoomId", msg.data.id);
+                            }
                         break;
 
                         case "snake":
@@ -88,12 +100,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                         case "broadcast_snake_ded":
                             // Sent when your snake dies
                             console.log("Snake died:", msg.data);
-                        // TODO: Handle snake death (show game over screen, etc.)
+                            // ✅ Clear room ID when snake dies
+                            localStorage.removeItem("currentRoomId");
                         break;
 
                         case "ok":
                             // Generic success response (e.g., from disconnect)
                             console.log("Operation successful:", msg.data);
+                            // ✅ Clear room state on successful disconnect
+                            if (msg.response === "disconnect") {
+                                clearRoomState();
+                                localStorage.removeItem("currentRoomId");
+                            }
                         break;
 
                         case "fail":
@@ -106,11 +124,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                         // Check if this is a reconnect failure
                         if (msg.response === "reconnect") {
                             console.log("Reconnect failed, clearing localStorage and redirecting to login");
-                            // Clear all localStorage
+                            // ✅ Clear all localStorage AND sessionStorage
                             localStorage.clear();
+                            sessionStorage.clear();
                             setPlayerData(null);
                             setIsConnected(false);
                             setReconnectFailed(true);
+                            clearRoomState();
                         }
                         break;
 
@@ -135,8 +155,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                 reject(error);
             }
         });
-    }, []);
+    }, [clearRoomState]);
 
+    // ✅ Enhanced disconnect to clear all state
     const disconnect = useCallback(() => {
         if (wsRef.current) {
             wsRef.current.close();
@@ -144,7 +165,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         }
         setIsConnected(false);
         setPlayerData(null);
-    }, []);
+        clearRoomState();
+    }, [clearRoomState]);
 
     const sendMessage = useCallback((message: any) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -177,6 +199,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             createdRoom,
             joinError,
             clearJoinError,
+            clearRoomState,
         }}>
         {children}
         </WebSocketContext.Provider>

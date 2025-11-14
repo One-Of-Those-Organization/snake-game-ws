@@ -70,4 +70,5 @@ export interface WebSocketContextType {
     createdRoom: any | null;
     joinError: string | null;
     clearJoinError: () => void;
+    clearRoomState: () => void;
 }
