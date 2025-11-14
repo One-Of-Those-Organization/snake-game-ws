@@ -205,7 +205,13 @@ function AppContent() {
             deleteUserName();
             disconnect();
         }}
-        onCreateRoom={() => setIsCreateRoom(true)}
+        onCreateRoom={() => {
+            setIsCreateRoom(true);
+            sendMessage({
+                type: "create",
+                data: {}
+            });
+        }}
         onFindRoom={() => setIsFindRoom(true)}
         />
         )}
