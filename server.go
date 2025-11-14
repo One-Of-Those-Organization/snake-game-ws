@@ -1,13 +1,13 @@
 package main
 
 import (
-	"strings"
-	"strconv"
 	"encoding/json"
-	"log"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -162,6 +162,8 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				}
 				room = tmp.Room
 			}
+
+			room = strings.ToUpper(room)
 
 			createdSnake := &Snake{
 				Body:      []Vector2{{X: rand.Intn(ARENA_SIZEX), Y: rand.Intn(ARENA_SIZEY)}},

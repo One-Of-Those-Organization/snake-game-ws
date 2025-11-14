@@ -48,3 +48,26 @@ export interface GameResultProps {
   isWinner: boolean;
   onLeave: () => void;
 }
+
+export interface PlayerData {
+    id: number;
+    name: string;
+    unique_id: string;
+}
+
+export interface WebSocketContextType {
+    ws: WebSocket | null;
+    isConnected: boolean;
+    playerData: PlayerData | null;
+    sendMessage: (message: any) => void;
+    gameState: any;
+    playerSnake: any;
+    sendMove: (direction: number) => void;
+    connect: (url: string) => Promise<boolean>;
+    disconnect: () => void;
+    reconnectFailed: boolean;
+    clearReconnectFailed: () => void;
+    createdRoom: any | null;
+    joinError: string | null;
+    clearJoinError: () => void;
+}

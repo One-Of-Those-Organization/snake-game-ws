@@ -1,25 +1,6 @@
-import { createContext, useContext, ReactNode, useRef, useState, useCallback } from 'react';
-
-interface PlayerData {
-    id: number;
-    name: string;
-    unique_id: string;
-}
-
-interface WebSocketContextType {
-    ws: WebSocket | null;
-    isConnected: boolean;
-    playerData: PlayerData | null;
-    sendMessage: (message: any) => void;
-    gameState: any;
-    playerSnake: any;
-    sendMove: (direction: number) => void;
-    connect: (url: string) => Promise<boolean>;
-    disconnect: () => void;
-    reconnectFailed: boolean;
-    clearReconnectFailed: () => void;
-    createdRoom: any | null;
-}
+import { createContext, useContext, useRef, useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
+import type { PlayerData, WebSocketContextType } from '../api/interface';
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 

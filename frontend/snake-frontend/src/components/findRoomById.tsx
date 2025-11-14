@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FindRoomProps } from "../api/interface";
+import { useWebSocketContext } from "../context/WebSocketContext";
 
 // Find Room
 export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
@@ -7,11 +8,36 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
   const [roomId, setRoomId] = useState(["", "", "", "", ""]);
   // Refs for input elements
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  // Set Joining Room Status
+  const [isJoining, setIsJoining] = useState(false);
+
+  // Get join error from WebSocket Context
+  const { joinError, clearJoinError, sendMessage, playerSnake } =
+    useWebSocketContext();
 
   // Another useEffect to Check Current User Status
   useEffect(() => {
     localStorage.setItem("InFindingRoom", "true");
   }, []);
+
+  useEffect(() => {
+    if (playerSnake && isJoining) {
+      const fullRoomId = roomId.join("");
+      console.log("Successfully joined room:", fullRoomId);
+      onJoinGame(fullRoomId);
+      localStorage.removeItem("InFindingRoom");
+      setIsJoining(false);
+    }
+  }, [playerSnake, isJoining, roomId, onJoinGame]);
+
+  useEffect(() => {
+    if (joinError) {
+      setIsJoining(false);
+      // Reset room ID input
+      setRoomId(["", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    }
+  }, [joinError]);
 
   // Handle Input Changes only numbers and auto-focus
   const handleChange = (index: number, value: string) => {
@@ -19,6 +45,7 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
     if (value && !/^\d$/.test(value)) return;
 
     const newRoomId = [...roomId];
+    newRoomId[index] = value.toUpperCase();
     newRoomId[index] = value;
     setRoomId(newRoomId);
 
@@ -38,10 +65,14 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
 
   // Handle Join Room (Placeholder for actual API call)
   const handleJoinRoom = () => {
-    const fullRoomId = roomId.join("");
+    // To Consistence with server, convert to uppercase
+    const fullRoomId = roomId.join("").toUpperCase;
     if (fullRoomId.length === 5) {
-      onJoinGame(fullRoomId);
-      localStorage.removeItem("InFindingRoom");
+      setIsJoining(true);
+      clearJoinError();
+
+      // Send join room message via WebSocket
+      sendMessage({ type: "join_room", data: { room_id: fullRoomId } });
     }
   };
 
@@ -57,6 +88,12 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
         Find Room
       </h1>
 
+      {joinError && (
+        <div className="mb-4 p-3 bg-red-600 text-white rounded-lg text-sm text-center w-full">
+          {joinError}
+        </div>
+      )}
+
       {/* Input Field Room ID */}
       <div className="flex justify-center gap-2 mb-6">
         {roomId.map((digit, index) => (
@@ -70,6 +107,7 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
             value={digit}
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
+            disabled={isJoining}
             className="w-10 h-12 bg-gray-700 text-white text-xl font-bold text-center rounded-md shadow-inner border border-gray-600 focus:border-blue-500 focus:outline-none"
           />
         ))}
