@@ -10,7 +10,7 @@ export function useRoomLogic() {
   const getCurrentRoom = useCallback((): RoomData | null => {
     if (createdRoom) {
       return {
-        room_id: createdRoom.id,
+        room: createdRoom.id,
         room_name: `Room #${createdRoom.id}`,
       };
     }

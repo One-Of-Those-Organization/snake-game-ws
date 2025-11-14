@@ -109,7 +109,7 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
       clearJoinError();
 
       // Send join room message via WebSocket
-      sendMessage({ type: "join", data: { room_id: fullRoomId } });
+      sendMessage({ type: "join", data: { room: fullRoomId } });
     }
   };
 

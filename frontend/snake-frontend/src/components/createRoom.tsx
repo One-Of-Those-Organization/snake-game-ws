@@ -19,7 +19,7 @@ export default function CreateRoom({
 
   // Get the room data from server
   const currentRoom = getCurrentRoom();
-  const roomId = currentRoom ? currentRoom.room_id : "-----";
+  const roomId = currentRoom ? currentRoom.room : "-----";
 
   // Handle Back with Delete the Current User Status in Creating Room
   const handleBack = () => {

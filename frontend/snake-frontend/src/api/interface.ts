@@ -15,7 +15,7 @@ export interface UserData {
 
 // For Room Data
 export interface RoomData {
-  room_id: string;
+  room: string;
   room_name: string;
 }
 
