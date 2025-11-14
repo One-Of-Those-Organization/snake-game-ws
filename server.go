@@ -137,10 +137,10 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 			pPtr.Snake = &newSnake
 			newRoom := Room{
+				UniqeID: strings.ToUpper(fmt.Sprintf("%05s", strconv.FormatInt(rand.Int63n(36*36*36*36*36), 36))),
 				Players: []*Player{pPtr},
 				Foods:   make([]Food, 0, 10),
 			}
-			newRoom.Players = append(newRoom.Players, pPtr)
 			s.Room = append(s.Room, newRoom)
 			ret := map[string]any{"response": "create", "type": "room", "data": newRoom}
 			jsonBytes, _ := json.Marshal(ret)
@@ -282,7 +282,6 @@ func (s *Server) updateGame() {
 	ticker := time.NewTicker(150 * time.Millisecond)
 	defer ticker.Stop()
 
-
 	for range ticker.C {
 		s.Lock.Lock()
 		var emptyRooms []string
@@ -331,6 +330,8 @@ func (s *Server) updateGame() {
 
 			jsonBytes, _ := json.Marshal(roomBroadcast)
 			for _, p := range room.Players {
+				// TODO: Just use channel so when disconnect it will not continue broadcasting stuff
+				if p.Socket == nil { continue }
 				p.Socket.WriteMessage(websocket.TextMessage, jsonBytes)
 			}
 		}
@@ -369,6 +370,7 @@ func (s *Server) spawnFood(room *Room) {
 }
 
 func (s *Server) checkSnakesCollision(player *Player) {
+	if player.Room == nil { return }
 	if len(player.Snake.Body) == 0 || player.Snake.Dead { return }
 	head := player.Snake.Body[0]
 
@@ -384,6 +386,7 @@ func (s *Server) checkSnakesCollision(player *Player) {
 }
 
 func (s *Server) checkFoodCollision(player *Player) {
+	if player.Room == nil { return }
 	if len(player.Snake.Body) == 0 { return }
 	head := player.Snake.Body[0]
 	for i, f := range player.Room.Foods {
