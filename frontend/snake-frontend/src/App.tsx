@@ -18,7 +18,7 @@ function AppContent() {
         deleteUserName,
         getPlayerData,
     } = useInputUserName();
-    const { rooms, createNewRoom } = useRoomLogic();
+    const { rooms } = useRoomLogic();
     const { isConnected, connect, sendMessage, disconnect, playerData, reconnectFailed, clearReconnectFailed } = useWebSocketContext();
     const [isCreateRoom, setIsCreateRoom] = useState(false);
     const [isFindRoom, setIsFindRoom] = useState(false);
@@ -135,16 +135,6 @@ function AppContent() {
         }
     }, [OnCreateMenu, OnFindMenu]);
 
-    useEffect(() => {
-        if (isCreateRoom && !alreadyCreatedRoom.current) {
-            createNewRoom();
-            alreadyCreatedRoom.current = true;
-        }
-        if (!isCreateRoom) {
-            alreadyCreatedRoom.current = false;
-        }
-    }, [isCreateRoom, createNewRoom]);
-
     // Show reconnecting screen
     if (isReconnecting) {
         return (
@@ -188,11 +178,8 @@ function AppContent() {
             />
         ) : isCreateRoom ? (
         <CreateRoom
-        rooms={rooms}
         onBack={() => setIsCreateRoom(false)}
-        onStartGame={() =>
-            handleStartGame(rooms[rooms.length - 1]?.room_id || "12345")
-        }
+        onStartGame={ (roomId) => handleStartGame(roomId) }
         />
         ) : isFindRoom ? (
         <FindRoom

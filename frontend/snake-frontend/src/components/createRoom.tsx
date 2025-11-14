@@ -1,25 +1,25 @@
 import { useEffect } from "react";
 import { useInputUserName } from "../hooks/useUsername";
+import { useRoomLogic } from "../hooks/roomLogic";
 import type { CreateRoomProps } from "../api/interface";
 
 // Create Room
 export default function CreateRoom({
-  rooms,
   onBack,
   onStartGame,
 }: CreateRoomProps) {
   // Get Current Username
   const { userName } = useInputUserName();
+  const { getCurrentRoom } = useRoomLogic();
 
   // Another useEffect to Check Current User Status
   useEffect(() => {
     localStorage.setItem("InCreatingRoom", "true");
   }, []);
 
-  // Get the latest room created
-  const latestRoom = rooms[rooms.length - 1];
-  // If no room, show placeholder
-  const roomId = latestRoom ? latestRoom.room_id : "-----";
+  // Get the room data from server
+  const currentRoom = getCurrentRoom();
+  const roomId = currentRoom ? currentRoom.room_id : "-----";
 
   // Handle Back with Delete the Current User Status in Creating Room
   const handleBack = () => {
@@ -33,7 +33,7 @@ export default function CreateRoom({
         {userName}'s Room
       </h1>
 
-      {/* Display Room ID (REMINDER THAT THIS STILL RANDOM MATH) */}
+      {/* Display Room ID from SERVER */}
       <div className="flex justify-center gap-2 mb-6">
         {roomId.split("").map((digit, index) => (
           <div
@@ -46,23 +46,18 @@ export default function CreateRoom({
       </div>
 
       <button
-        onClick={onStartGame}
+        onClick={() => onStartGame(roomId)}
         className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors mb-6"
       >
         Start Game
       </button>
 
-      {/* Technically call onBack but also remove the Creating Room status */}
       <button
         onClick={handleBack}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors mb-4"
+        className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
       >
-        Back to Menu
+        Back
       </button>
-
-      <p className="text-gray-400 text-sm text-center">
-        Share this 5-digit code with your friends to join!
-      </p>
     </div>
   );
 }

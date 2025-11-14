@@ -21,11 +21,9 @@ export interface RoomData {
 
 // Create Room Component
 export interface CreateRoomProps {
-  rooms: RoomData[];
   onBack: () => void;
-  onStartGame: () => void;
+  onStartGame: (roomId: string) => void;
 }
-
 // Find Room Component
 export interface FindRoomProps {
   onBack: () => void;

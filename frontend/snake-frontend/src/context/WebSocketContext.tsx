@@ -18,6 +18,7 @@ interface WebSocketContextType {
     disconnect: () => void;
     reconnectFailed: boolean;
     clearReconnectFailed: () => void;
+    createdRoom: any | null;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
@@ -29,6 +30,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     const [playerSnake, setPlayerSnake] = useState<any>(null);
     const [playerData, setPlayerData] = useState<PlayerData | null>(null);
     const [reconnectFailed, setReconnectFailed] = useState(false);
+    const [createdRoom, setCreatedRoom] = useState<any | null>(null);
 
     const clearReconnectFailed = useCallback(() => {
         setReconnectFailed(false);
@@ -81,14 +83,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                         break;
 
                         case "room":
-                            // Sent when creating a new room - contains room data
                             console.log("Room created:", msg.data);
+                            setCreatedRoom(msg.data);
                         break;
 
                         case "snake":
                             // Sent when joining a room - contains snake data
                             console.log("Snake data:", msg.data);
-                        setPlayerSnake(msg.data);
+                            setPlayerSnake(msg.data);
                         break;
 
                         case "broadcast_room":
@@ -181,7 +183,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             connect,
             disconnect,
             reconnectFailed,
-            clearReconnectFailed
+            clearReconnectFailed,
+            createdRoom
         }}>
         {children}
         </WebSocketContext.Provider>
