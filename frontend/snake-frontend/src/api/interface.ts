@@ -45,7 +45,6 @@ export interface GameMenuProps {
 // Game Result Component
 export interface GameResultProps {
   score: number;
-  isWinner: boolean;
   onLeave: () => void;
 }
 
@@ -71,4 +70,6 @@ export interface WebSocketContextType {
     joinError: string | null;
     clearJoinError: () => void;
     clearRoomState: () => void;
+    deathData: any | null;
+    clearDeathData: () => void;
 }

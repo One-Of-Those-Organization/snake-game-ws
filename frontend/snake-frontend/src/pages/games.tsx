@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useWebSocketContext } from "../context/WebSocketContext";
+import GameResult from "../components/GameResult";
 import type { SnakeCanvasProps } from "../api/interface";
 
 export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { isConnected, gameState, playerData, sendMove } = useWebSocketContext();
+    const { isConnected, gameState, playerData, sendMove, deathData, clearDeathData } = useWebSocketContext();
 
     // Store previous game state for interpolation
     const prevGameStateRef = useRef<any>(null);
@@ -14,6 +15,9 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
     // Handle keyboard input for snake movement
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Don't accept input if dead
+            if (deathData) return;
+
             // Prevent default scrolling behavior
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
                 e.preventDefault();
@@ -33,7 +37,7 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [sendMove]);
+    }, [sendMove, deathData]);
 
     // Update interpolation when gameState changes
     useEffect(() => {
@@ -90,7 +94,7 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
                     });
                 }
 
-                // Render snakes with smooth interpolation
+                // Render snakes with interpolation
                 const players = interpolatedState.snakes || interpolatedState.Snakes || interpolatedState.players || interpolatedState.Players;
                 const prevPlayers = prevGameStateRef.current ? 
                     (prevGameStateRef.current.snakes || prevGameStateRef.current.Snakes || prevGameStateRef.current.players || prevGameStateRef.current.Players) : 
@@ -208,6 +212,15 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
         return players?.length || 0;
     })();
 
+    // Handle death - exit room and show game over
+    const handleDeath = () => {
+        clearDeathData();
+        onBack();
+    };
+
+    // Get final score from death data
+    const finalScore = deathData?.snake?.body_len ?? deathData?.snake?.bodyLen ?? 0;
+
     return (
         <div className="relative flex flex-col justify-center items-center w-screen h-screen bg-gradient-to-br from-gray-900 to-gray-800">
             {/* Connection Status */}
@@ -268,6 +281,14 @@ export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasP
                 <p className="text-gray-400 text-xs mb-1">Your Score</p>
                 <p className="text-white text-2xl font-bold">{currentScore}</p>
             </div>
+
+            {/* Death Dialog */}
+            {deathData && (
+                <GameResult
+                    score={finalScore}
+                    onLeave={handleDeath}
+                />
+            )}
         </div>
     );
 }
