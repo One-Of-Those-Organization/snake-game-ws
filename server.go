@@ -175,6 +175,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var roomPtr *Room = nil
+			s.Lock.Lock()
 			for i := range s.Room {
 				if s.Room[i].UniqeID == room {
 					roomPtr = &s.Room[i]
@@ -183,29 +184,28 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if roomPtr == nil {
+				s.Lock.Unlock()
 				sendFail(conn, messageType, "join", "There is no room with that id.")
 				continue
 			}
 
-			s.Lock.Lock()
-			for _, p := range s.PlayerConn {
-				if p.Socket == conn {
-					p.Snake = createdSnake
-					if p.Room == nil {
-						p.Room = roomPtr
-					} else {
-						sendFail(conn, messageType, "join", "Already joined another room.")
-						break
-					}
-					// NOTE: What todo when player is on other room and trying to join
-					// diff room? should it be stopped? i think it should
-
-					ret := map[string]any{"response": "join", "type": "snake", "data": createdSnake}
-					jsonBytes, _ := json.Marshal(ret)
-					conn.WriteMessage(messageType, jsonBytes)
-					break
-				}
+			if pPtr.Room != nil {
+				s.Lock.Unlock()
+				sendFail(conn, messageType, "join", "Already joined another room.")
+				continue
 			}
+
+			pPtr.Snake = createdSnake
+			pPtr.Room = roomPtr
+
+			roomPtr.Players = append(roomPtr.Players, pPtr)
+
+			log.Printf("Player %d (%s) joined room %s. Total players: %d\n", pPtr.ID, pPtr.Name, roomPtr.UniqeID, len(roomPtr.Players))
+
+			ret := map[string]any{"response": "join", "type": "snake", "data": createdSnake}
+			jsonBytes, _ := json.Marshal(ret)
+			conn.WriteMessage(messageType, jsonBytes)
+
 			s.Lock.Unlock()
 
 		case "disconnect":
