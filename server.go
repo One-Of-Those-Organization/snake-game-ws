@@ -79,6 +79,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				ID:      newID,
 				Name:    name,
 				Socket:  conn,
+				Room:    nil,
 				Snake:   nil,
 				UniqeID: strings.ToUpper(fmt.Sprintf("%05s", strconv.FormatInt(rand.Int63n(36*36*36*36*36), 36))),
 			}
@@ -142,6 +143,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 				Foods:   make([]Food, 0, 10),
 			}
 			s.Room = append(s.Room, newRoom)
+			pPtr.Room = &s.Room[len(s.Room) -1]
 			ret := map[string]any{"response": "create", "type": "room", "data": newRoom}
 			jsonBytes, _ := json.Marshal(ret)
 			conn.WriteMessage(messageType, jsonBytes)

@@ -8,7 +8,7 @@ import (
 type Player struct {
 	ID              int              `json:"id"`
 	Name            string           `json:"name"`
-	Room            *Room            `json:"room"`
+	Room            *Room            `json:"-"`
 	UniqeID         string           `json:"unique_id"`
 	Snake           *Snake           `json:"snake"`
 	Socket          *websocket.Conn  `json:"-"`
