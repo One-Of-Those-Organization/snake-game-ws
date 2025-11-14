@@ -1,126 +1,272 @@
 import { useEffect, useRef, useState } from "react";
-import { useWebSocket } from "../hooks/useWebSocket";
+import { useWebSocketContext } from "../context/WebSocketContext";
 import type { SnakeCanvasProps } from "../api/interface";
 
 export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const WS_URL = `ws://localhost:8080/ws?roomId=${roomId}&name=${playerName}`;
-  const { isConnected, gameState, playerSnake, sendMove } = useWebSocket(WS_URL);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const { isConnected, gameState, playerData, sendMove } = useWebSocketContext();
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-        sendMove(0);
-      }
-      if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
-        sendMove(1);
-      }
-      if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-        sendMove(2);
-      }
-      if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
-        sendMove(3);
-      }
-    };
+    // Store previous game state for interpolation
+    const prevGameStateRef = useRef<any>(null);
+    const lastUpdateTimeRef = useRef<number>(Date.now());
+    const [interpolatedState, setInterpolatedState] = useState<any>(null);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [sendMove]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !gameState) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const gridSize = 32;
-    const cellSize = canvas.width / gridSize;
-
-    ctx.fillStyle = "#111827";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    if (gameState.foods && Array.isArray(gameState.foods)) {
-      ctx.fillStyle = "#EF4444";
-      gameState.foods.forEach((f: any) => {
-        ctx.fillRect(
-          f.Position.X * cellSize,
-          f.Position.Y * cellSize,
-          cellSize - 1,
-          cellSize - 1
-        );
-      });
-    }
-
-    if (gameState.snakes && Array.isArray(gameState.snakes)) {
-      gameState.snakes.forEach((player: any) => {
-        if (player.Snake && player.Snake.Body && Array.isArray(player.Snake.Body)) {
-          player.Snake.Body.forEach((pos: any, index: number) => {
-            if (playerSnake && player.ID === playerSnake.ID) {
-              ctx.fillStyle = index === 0 ? "#10B981" : "#22D3EE";
-            } else {
-              ctx.fillStyle = player.Snake.Color || "#FFFFFF";
+    // Handle keyboard input for snake movement
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Prevent default scrolling behavior
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
             }
-            ctx.fillRect(
-              pos.X * cellSize,
-              pos.Y * cellSize,
-              cellSize - 1,
-              cellSize - 1
-            );
-          });
+
+            // Direction mapping: Right = 0, Down = 1, Left = 2, Up = 3
+            if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+                sendMove(0);
+            } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
+                sendMove(1);
+            } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+                sendMove(2);
+            } else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+                sendMove(3);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [sendMove]);
+
+    // Update interpolation when gameState changes
+    useEffect(() => {
+        if (gameState) {
+            prevGameStateRef.current = interpolatedState || gameState;
+            lastUpdateTimeRef.current = Date.now();
+            setInterpolatedState(gameState);
         }
-      });
-    }
-  }, [gameState, playerSnake]);
+    }, [gameState]);
 
-  return (
-    <div className="relative flex flex-col justify-center items-center w-screen h-screen bg-gradient-to-br from-gray-900 to-gray-800">
-      {/* Connection Status */}
-      <div className="absolute top-4 left-4">
-        <span className={isConnected ? "text-green-400" : "text-red-400"}>
-          {isConnected ? "●  Connected" : "●  Disconnected"}
+    // Render game canvas with smooth interpolation
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        const GRID_SIZE = 32;
+        const CELL_SIZE = canvas.width / GRID_SIZE; // 512 / 32 = 16 pixels per cell
+        const SERVER_TICK_RATE = 150; // Backend updates every 150ms
+
+        let animationFrameId: number;
+
+        const render = () => {
+            // Clear canvas
+            ctx.fillStyle = "#111827";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (interpolatedState) {
+                // Calculate interpolation factor (0 to 1)
+                const timeSinceUpdate = Date.now() - lastUpdateTimeRef.current;
+                const interpolationFactor = Math.min(timeSinceUpdate / SERVER_TICK_RATE, 1);
+
+                // Render foods (no interpolation needed)
+                const foods = interpolatedState.foods || interpolatedState.Foods;
+                if (foods && Array.isArray(foods)) {
+                    ctx.fillStyle = "#EF4444"; // Red
+
+                    foods.forEach((food: any) => {
+                        const position = food.Position || food.position || food;
+                        const x = position.X ?? position.x;
+                        const y = position.Y ?? position.y;
+
+                        if (x !== undefined && y !== undefined) {
+                            ctx.fillRect(
+                                x * CELL_SIZE,
+                                y * CELL_SIZE,
+                                CELL_SIZE - 1,
+                                CELL_SIZE - 1
+                            );
+                        }
+                    });
+                }
+
+                // Render snakes with interpolation
+                const players = interpolatedState.snakes || interpolatedState.Snakes || interpolatedState.players || interpolatedState.Players;
+                const prevPlayers = prevGameStateRef.current ? 
+                    (prevGameStateRef.current.snakes || prevGameStateRef.current.Snakes || prevGameStateRef.current.players || prevGameStateRef.current.Players) : 
+                    null;
+
+                if (players && Array.isArray(players)) {
+                    players.forEach((player: any, playerIndex: number) => {
+                        const snake = player.Snake || player.snake;
+                        const playerId = player.ID ?? player.id ?? player.PlayerId ?? player.player_id;
+                        const currentPlayerId = playerData?.id;
+
+                        if (snake) {
+                            const body = snake.Body || snake.body;
+
+                            // Find previous position for this player
+                            let prevBody = null;
+                            if (prevPlayers && Array.isArray(prevPlayers)) {
+                                const prevPlayer = prevPlayers.find((p: any) => {
+                                    const prevId = p.ID ?? p.id ?? p.PlayerId ?? p.player_id;
+                                    return prevId === playerId;
+                                });
+                                if (prevPlayer) {
+                                    const prevSnake = prevPlayer.Snake || prevPlayer.snake;
+                                    prevBody = prevSnake?.Body || prevSnake?.body;
+                                }
+                            }
+
+                            if (body && Array.isArray(body)) {
+                                const isCurrentPlayer = playerId === currentPlayerId;
+
+                                body.forEach((segment: any, index: number) => {
+                                    const currX = segment.X ?? segment.x;
+                                    const currY = segment.Y ?? segment.y;
+
+                                    if (currX !== undefined && currY !== undefined) {
+                                        let renderX = currX;
+                                        let renderY = currY;
+
+                                        // Interpolate position if we have previous data
+                                        if (prevBody && prevBody[index] && interpolationFactor < 1) {
+                                            const prevX = prevBody[index].X ?? prevBody[index].x;
+                                            const prevY = prevBody[index].Y ?? prevBody[index].y;
+
+                                            if (prevX !== undefined && prevY !== undefined) {
+                                                // Only interpolate if distance is 1 cell (normal movement)
+                                                const dx = currX - prevX;
+                                                const dy = currY - prevY;
+
+                                                if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+                                                    renderX = prevX + dx * interpolationFactor;
+                                                    renderY = prevY + dy * interpolationFactor;
+                                                }
+                                            }
+                                        }
+
+                                        // Color logic
+                                        if (isCurrentPlayer) {
+                                            ctx.fillStyle = index === 0 ? "#10B981" : "#22D3EE";
+                                        } else {
+                                            ctx.fillStyle = snake.Color || snake.color || "#FFFFFF";
+                                        }
+
+                                        ctx.fillRect(
+                                            renderX * CELL_SIZE,
+                                            renderY * CELL_SIZE,
+                                            CELL_SIZE - 1,
+                                            CELL_SIZE - 1
+                                        );
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(render);
+        };
+
+        // Start the render loop
+        render();
+
+        // Cleanup
+        return () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        };
+    }, [interpolatedState, playerData]);
+
+    // Get current player's score
+    const currentScore = (() => {
+        if (!gameState || !playerData) return 0;
+
+        const players = gameState.snakes || gameState.Snakes || gameState.players || gameState.Players;
+        if (!players || !Array.isArray(players)) return 0;
+
+        const currentPlayer = players.find((p: any) => {
+            const playerId = p.ID ?? p.id ?? p.PlayerId ?? p.player_id;
+            return playerId === playerData.id;
+        });
+
+        if (!currentPlayer) return 0;
+
+        const snake = currentPlayer.Snake || currentPlayer.snake;
+        if (!snake) return 0;
+
+        return snake.BodyLen ?? snake.bodyLen ?? snake.Body?.length ?? snake.body?.length ?? 0;
+    })();
+
+    // Get player count
+    const playerCount = (() => {
+        if (!gameState) return 0;
+        const players = gameState.snakes || gameState.Snakes || gameState.players || gameState.Players;
+        return players?.length || 0;
+    })();
+
+    return (
+        <div className="relative flex flex-col justify-center items-center w-screen h-screen bg-gradient-to-br from-gray-900 to-gray-800">
+        {/* Connection Status */}
+        <div className="absolute top-4 left-4 flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+        <span className={`text-sm font-semibold ${isConnected ? "text-green-400" : "text-red-400"}`}>
+        {isConnected ? "Connected" : "Disconnected"}
         </span>
-      </div>
+        </div>
 
-      {/* Quit Button */}
-      <div className="absolute top-4 right-4">
+        {/* Quit Button */}
+        <div className="absolute top-4 right-4">
         <button
-          onClick={onBack}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-bold"
+        onClick={onBack}
+        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-bold shadow-lg"
         >
-          Quit Room
+        Leave Room
         </button>
-      </div>
+        </div>
 
-      {/* Room ID Display */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 p-4 bg-gray-800 rounded-xl shadow-2xl border border-gray-700">
+        {/* Room ID Display */}
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 p-4 bg-gray-800 rounded-xl shadow-2xl border border-gray-700">
         <p className="text-gray-400 text-xs font-semibold text-center mb-2">
-          Room ID - Share with friends!
+        Room ID - Share with friends!
         </p>
         <div className="flex justify-center gap-2">
-          {roomId.split("").map((digit, index) => (
+        {roomId.split("").map((digit, index) => (
             <div
-              key={index}
-              className="w-8 h-10 bg-gray-700 text-white text-lg font-bold flex items-center justify-center rounded-md shadow-inner border border-gray-600"
+            key={index}
+            className="w-8 h-10 bg-gray-700 text-white text-lg font-bold flex items-center justify-center rounded-md shadow-inner border border-gray-600"
             >
-              {digit}
+            {digit}
             </div>
-          ))}
+        ))}
         </div>
-      </div>
+        <p className="text-gray-500 text-xs text-center mt-2">
+        Players: {playerCount}
+        </p>
+        </div>
 
-      <canvas
+        {/* Game Canvas */}
+        <canvas
         ref={canvasRef}
         width={512}
         height={512}
         className="border-4 border-gray-700 rounded-lg shadow-2xl w-[80vmin] h-[80vmin]"
         style={{ imageRendering: "pixelated" }}
-      />
+        />
 
-      <div className="absolute bottom-8 text-gray-400 text-sm text-center">
+        {/* Controls Info */}
+        <div className="absolute bottom-8 left-8 text-gray-400 text-sm">
         <p className="font-semibold mb-1">Controls</p>
         <p className="text-xs">Arrow Keys / WASD to move</p>
-      </div>
-    </div>
-  );
+        </div>
+
+        {/* Player Score */}
+        <div className="absolute bottom-8 right-8 p-3 bg-gray-800 rounded-lg border border-gray-700 shadow-lg">
+        <p className="text-gray-400 text-xs mb-1">Your Score</p>
+        <p className="text-white text-2xl font-bold">{currentScore}</p>
+        </div>
+        </div>
+    );
 }
