@@ -102,7 +102,7 @@ npm run dev
 ### 5. Game Over
 ![Game Over](images/game_over)
 
-*Notifikasi ketika snake mati karena collision (tabrakan dengan snake lain atau dinding)*
+*Notifikasi ketika snake mati karena collision, baik karena menabrak badan sendiri, badan pemain lain, maupun dinding.*
 
 ---
 
@@ -130,7 +130,7 @@ Client A                    Server                    Client B
 
 ### Real-time Features Implemented:
 1. **Instant Movement Update**: Setiap input keyboard langsung dikirim ke server dan di-broadcast ke semua client dalam room
-2. **Collision Detection**: Server mendeteksi tabrakan secara real-time dan langsung notify semua pemain
+2. **Collision Detection**: Server mendeteksi berbagai jenis tabrakan secara real-time, termasuk menabrak badan sendiri, badan pemain lain, maupun dinding.
 3. **Food Spawning**: Makanan baru spawn otomatis saat dimakan dan langsung visible untuk semua pemain
 4. **Player Join/Leave**: Notifikasi real-time ketika ada pemain baru bergabung atau keluar dari room
 5. **Reconnect Mechanism**: Jika koneksi terputus, client otomatis reconnect dan restore session
