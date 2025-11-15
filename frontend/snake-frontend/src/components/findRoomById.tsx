@@ -23,6 +23,7 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
     };
   }, [clearJoinError]);
 
+  // Effect to handle successful join
   useEffect(() => {
     if (playerSnake && isJoining) {
       const fullRoomId = roomId.join("");
@@ -33,6 +34,7 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
     }
   }, [playerSnake, isJoining, roomId, onJoinGame]);
 
+  // Effect to handle join error
   useEffect(() => {
     if (joinError) {
       console.log("Failed to join room:", joinError);
@@ -119,6 +121,7 @@ export default function FindRoom({ onBack, onJoinGame }: FindRoomProps) {
     onBack();
   };
 
+  // Main Render
   return (
     <div className="p-8 bg-gray-800 rounded-2xl shadow-2xl flex flex-col items-center w-80">
       <h1 className="text-white text-2xl mb-6 font-semibold text-center">

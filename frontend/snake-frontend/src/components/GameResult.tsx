@@ -1,5 +1,6 @@
 import type { GameResultProps } from "../api/interface";
 
+// Game Result Component or Game Over Screen
 export default function GameResult({ score, onLeave }: GameResultProps) {
   return (
     <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">

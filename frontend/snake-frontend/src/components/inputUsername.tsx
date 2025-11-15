@@ -10,9 +10,11 @@ export default function NameInput(props: UserData) {
   const [serverIp, setServerIp] = useState(() => {
     return localStorage.getItem("serverIp") || "localhost";
   });
+  // Port state
   const [serverPort, setServerPort] = useState(() => {
     return localStorage.getItem("serverPort") || "8080";
   });
+  // Connecting state
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,7 +95,7 @@ export default function NameInput(props: UserData) {
       {/* Error Message */}
       {error && (
         <div className="w-full mb-2 p-2 bg-red-900 rounded text-red-400 text-sm text-center">
-          ERROR: {error}
+          WARNING: {error}
         </div>
       )}
 

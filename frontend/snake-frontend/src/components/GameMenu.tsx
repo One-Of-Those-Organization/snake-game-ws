@@ -1,5 +1,6 @@
 import type { GameMenuProps } from "../api/interface";
 
+// Only Leabe Game Menu
 export default function GameMenu({ onLeave }: GameMenuProps) {
   return (
     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
