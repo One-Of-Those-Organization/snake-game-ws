@@ -14,10 +14,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Server struct (some arena game and player timeout as const)
 const ARENA_SIZEX = 32
 const ARENA_SIZEY = 32
 const PLAYER_TIMEOUT = 5 * time.Minute
 
+// some server struct
 type Server struct {
 	PlayerConn []*Player
 	Room       []Room
@@ -26,6 +28,7 @@ type Server struct {
 	Lock       sync.Mutex
 }
 
+// Handling websocket connections
 func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.Upgrade.Upgrade(w, r, nil)
 	if err != nil {
@@ -39,6 +42,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 	var pPtr *Player = nil
 
+	// Read messages loop
 	for {
 		messageType, msgBytes, err := conn.ReadMessage()
 		if err != nil {
@@ -53,6 +57,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 		}
 		conn.SetReadDeadline(time.Now().Add(timeout))
 
+		// Parse incoming message
 		var incoming Message
 		if err := json.Unmarshal(msgBytes, &incoming); err != nil {
 			log.Println("Invalid JSON message:", err)
@@ -60,6 +65,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Handle different connection message types
 		switch incoming.Type {
 		case "connect":
 			var name string
@@ -266,6 +272,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection handler exiting for player: %v\n", pPtr)
 }
 
+// Some function to clean up inactive players and update game state
 func (s *Server) cleanUpService() {
 	s.Lock.Lock()
 	for i := range s.PlayerConn {
@@ -285,6 +292,7 @@ func (s *Server) cleanUpService() {
 	s.Lock.Unlock()
 }
 
+// Game update loop
 func (s *Server) updateGame() {
 	ticker := time.NewTicker(150 * time.Millisecond)
 	defer ticker.Stop()
@@ -356,6 +364,7 @@ func (s *Server) updateGame() {
 	}
 }
 
+// Broadcast failure message
 func sendFail(conn *websocket.Conn, msgType int, responseTo string, reason string) {
 	state := map[string]any{
 		"response": responseTo,
@@ -366,6 +375,7 @@ func sendFail(conn *websocket.Conn, msgType int, responseTo string, reason strin
 	_ = conn.WriteMessage(msgType, jsonBytes)
 }
 
+// Spawn food in the room
 func (s *Server) spawnFood(room *Room) {
 	f := Food {
 		Position: Vector2 {
@@ -376,6 +386,7 @@ func (s *Server) spawnFood(room *Room) {
 	room.Foods = append(room.Foods, f)
 }
 
+// Check collision between snakes (if crash into another snake)
 func (s *Server) checkSnakesCollision(player *Player) {
 	if player.Room == nil { return }
 	if len(player.Snake.Body) == 0 || player.Snake.Dead { return }
@@ -392,6 +403,7 @@ func (s *Server) checkSnakesCollision(player *Player) {
 	}
 }
 
+// Check collision between snake and food
 func (s *Server) checkFoodCollision(player *Player) {
 	if player.Room == nil { return }
 	if len(player.Snake.Body) == 0 { return }

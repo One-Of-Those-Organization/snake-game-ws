@@ -7,6 +7,7 @@ import (
 	"math/rand"
 )
 
+// Message struct for communication
 type Message struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`

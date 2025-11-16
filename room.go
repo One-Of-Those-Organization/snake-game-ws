@@ -1,8 +1,6 @@
 package main
 
-import (
-)
-
+// Room struct
 type Room struct {
 	UniqeID string    `json:"id"`
 	Players []*Player `json:"players"`

@@ -1,13 +1,12 @@
 package main
 
-import (
-)
-
+// Vector2 struct
 type Vector2 struct {
 	X int `json:"x"`
 	Y int `json:"y"`
 };
 
+// Snake struct
 type Snake struct {
 	Body       []Vector2 `json:"body"`
 	BodyLen    int       `json:"body_len"`
@@ -16,6 +15,7 @@ type Snake struct {
 	Dead       bool      `json:"dead"`
 };
 
+// Move the snake based on its current direction
 func (s *Snake) move() {
 	if len(s.Body) == 0 { return }
 	head := s.Body[0]
@@ -41,6 +41,7 @@ func (s *Snake) move() {
 	}
 }
 
+// Check if the snake has collided with itself
 func (s *Snake) checkSelfCollision() {
 	head := s.Body[0]
 	for i := 1; i < len(s.Body); i++ {

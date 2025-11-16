@@ -2,4 +2,4 @@
 - [x] food only spawn one even if there is many snake
 - [x] no reconnect (maybe there will be auto generated password?)
 - [x] snake color all white
-- [ ] snake spawn improvement
+- [x] snake spawn improvement

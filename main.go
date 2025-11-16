@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
 	"github.com/gorilla/websocket"
 )
 
+// Websocket server setup and main function
 func main() {
 	port := 8080
 	var s = Server {

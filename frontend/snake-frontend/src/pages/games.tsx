@@ -3,7 +3,7 @@ import { useWebSocketContext } from "../context/WebSocketContext";
 import GameResult from "../components/GameResult";
 import type { SnakeCanvasProps } from "../api/interface";
 
-export default function SnakeCanvas({ roomId, playerName, onBack }: SnakeCanvasProps) {
+export default function SnakeCanvas({ roomId, onBack }: SnakeCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { isConnected, gameState, playerData, sendMove, deathData, clearDeathData } = useWebSocketContext();
 

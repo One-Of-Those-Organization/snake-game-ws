@@ -7,16 +7,13 @@ import {
 } from "react-router-dom";
 import "./index.css";
 import App from "./App";
-import Games from "./pages/games";
 
+// Root rendering with React Router
 createRoot(document.getElementById("root")!).render(
   <Router>
     <Routes>
       {/* Default page */}
       <Route path="/" element={<App />} />
-
-      {/* Games page */}
-      <Route path="/games" element={<Games />} />
 
       {/* Redirect unknown routes to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
