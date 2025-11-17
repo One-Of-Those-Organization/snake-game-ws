@@ -274,22 +274,27 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 // Some function to clean up inactive players and update game state
 func (s *Server) cleanUpService() {
-	s.Lock.Lock()
-	for i := range s.PlayerConn {
-		p := s.PlayerConn[i]
-		now := time.Now()
-		if p.Socket != nil { continue }
-		if now.After(p.LastActive.Add(PLAYER_TIMEOUT)) {
-			for j := range p.Room.Players {
-				if p.ID == p.Room.Players[j].ID {
-					p.Room.Players = append(p.Room.Players[:j], p.Room.Players[j+1:]...)
-					break
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.Lock.Lock()
+		for i := range s.PlayerConn {
+			p := s.PlayerConn[i]
+			now := time.Now()
+			if p.Socket != nil { continue }
+			if now.After(p.LastActive.Add(PLAYER_TIMEOUT)) {
+				for j := range p.Room.Players {
+					if p.ID == p.Room.Players[j].ID {
+						p.Room.Players = append(p.Room.Players[:j], p.Room.Players[j+1:]...)
+						break
+					}
 				}
+				p.Room = nil
 			}
-			p.Room = nil
 		}
+		s.Lock.Unlock()
 	}
-	s.Lock.Unlock()
 }
 
 // Game update loop
