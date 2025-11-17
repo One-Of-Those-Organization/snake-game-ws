@@ -284,13 +284,15 @@ func (s *Server) cleanUpService() {
 			now := time.Now()
 			if p.Socket != nil { continue }
 			if now.After(p.LastActive.Add(PLAYER_TIMEOUT)) {
-				for j := range p.Room.Players {
-					if p.ID == p.Room.Players[j].ID {
-						p.Room.Players = append(p.Room.Players[:j], p.Room.Players[j+1:]...)
-						break
+				if p.Room != nil {
+					for j := range p.Room.Players {
+						if p.ID == p.Room.Players[j].ID {
+							p.Room.Players = append(p.Room.Players[:j], p.Room.Players[j+1:]...)
+							break
+						}
 					}
+					p.Room = nil
 				}
-				p.Room = nil
 			}
 		}
 		s.Lock.Unlock()
@@ -309,20 +311,16 @@ func (s *Server) updateGame() {
 		for i := range s.Room {
 			room := &s.Room[i]
 			var alivePlayers []*Player
+			var deadPlayers []*Player
+
 			for _, p := range room.Players {
+				if p.Snake == nil {
+					deadPlayers = append(deadPlayers, p)
+					continue
+				}
+
 				if p.Snake.Dead {
-					ret := map[string]any{
-						"type": "broadcast_snake_ded",
-						"data": p,
-					}
-					jsonBytes, _ := json.Marshal(ret)
-
-					if p.Socket != nil { p.Socket.WriteMessage(websocket.TextMessage, jsonBytes) }
-
-					p.Room = nil
-					p.Snake = nil
-
-					log.Printf("Player %d (%s) died and removed from room %s\n", p.ID, p.Name, room.UniqeID)
+					deadPlayers = append(deadPlayers, p)
 					continue
 				}
 
@@ -330,10 +328,33 @@ func (s *Server) updateGame() {
 				p.Snake.checkSelfCollision()
 				s.checkFoodCollision(p)
 				s.checkSnakesCollision(p)
-				alivePlayers = append(alivePlayers, p)
+
+				if p.Snake.Dead {
+					deadPlayers = append(deadPlayers, p)
+				} else {
+					alivePlayers = append(alivePlayers, p)
+				}
 			}
+
+			for _, p := range deadPlayers {
+				ret := map[string]any{
+					"type": "broadcast_snake_ded",
+					"data": p,
+				}
+				jsonBytes, _ := json.Marshal(ret)
+				if p.Socket != nil {
+					_ = p.Socket.WriteMessage(websocket.TextMessage, jsonBytes)
+				}
+
+				p.Room = nil
+				p.Snake = nil
+			}
+
 			room.Players = alivePlayers
-			for len(room.Foods) < len(room.Players) { s.spawnFood(room) }
+
+			for len(room.Foods) < len(room.Players) {
+				s.spawnFood(room)
+			}
 
 			if len(room.Players) == 0 {
 				emptyRooms = append(emptyRooms, room.UniqeID)
@@ -347,12 +368,11 @@ func (s *Server) updateGame() {
 					"foods":  room.Foods,
 				},
 			}
-
 			jsonBytes, _ := json.Marshal(roomBroadcast)
 			for _, p := range room.Players {
-				// TODO: Just use channel so when disconnect it will not continue broadcasting stuff
-				if p.Socket == nil { continue }
-				p.Socket.WriteMessage(websocket.TextMessage, jsonBytes)
+				if p.Socket != nil {
+					_ = p.Socket.WriteMessage(websocket.TextMessage, jsonBytes)
+				}
 			}
 		}
 
